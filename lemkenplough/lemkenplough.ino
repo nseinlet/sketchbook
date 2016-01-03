@@ -37,7 +37,6 @@ typedef struct serv Serv;
 Serv sorties[13] = {0};
 
 void setup() {
-  //Serial.begin(115200);
   for(uint8_t pin=0; pin<13; pin++){
     sorties[pin].angleactu=90;
     sorties[pin].tempo=0;
@@ -45,14 +44,14 @@ void setup() {
     sorties[pin].pinIn=0;
   }
   PCintPort::attachInterrupt(2, &calcInput, CHANGE); // retourner
-  PCintPort::attachInterrupt(3, &calcInput, CHANGE); // position
-  PCintPort::attachInterrupt(4, &calcInput, CHANGE); // packomat
-  sorties[6].pinIn=3;
+  PCintPort::attachInterrupt(3, &calcInput, CHANGE); // roues
+
   sorties[7].pinIn=3;
+  sorties[7].tempo=450;
   sorties[7].invert=true;
-  sorties[8].pinIn=2;
+  sorties[8].pinIn=3;
   sorties[8].tempo=450;
-  sorties[9].pinIn=3;
+  sorties[9].pinIn=2;
   sorties[9].tempo=900;
   
   for(uint8_t pin=0; pin<13; pin++){
