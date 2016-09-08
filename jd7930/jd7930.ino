@@ -32,18 +32,21 @@ struct serv {
   volatile unsigned long tempo;
   volatile unsigned long lastMove;
   volatile boolean anglemode;
+  volatile int prcRatio;
   Servo outservo;
 };
 typedef struct serv Serv;
 Serv outputs[13] = {0};
 
 void setup() {
+  Serial.begin(115200);
   for(uint8_t pin=0; pin<13; pin++){
     outputs[pin].actualPWM=1500;
     outputs[pin].tempo=0;
     outputs[pin].invert=false;
     outputs[pin].pinIn=0;
     outputs[pin].anglemode=false;
+    outputs[pin].prcRatio = 100;
   }
   PCintPort::attachInterrupt(2 , &computeInput, CHANGE); // motors
   PCintPort::attachInterrupt(3 , &computeInput, CHANGE); // rear lift
@@ -53,6 +56,7 @@ void setup() {
   outputs[5].tempo=30;
   outputs[6].pinIn=2;
   outputs[6].tempo=0;
+  outputs[6].prcRatio = 81;
   outputs[9].pinIn=2;
   outputs[9].tempo=0;
   outputs[10].pinIn=3;
@@ -112,31 +116,28 @@ int PWM2deg(int pwmsig)
   return res;
 };
 
-void electronicDiff(int steer, int leftMotor, int rightMotor)
+void electronicDiff(int steer, int rightMotor, int leftMotor)
 {
   //ElectronicalDiff
   int steerAngle;
   float angle;
-  steerAngle = outputs[steer].actualPWM;
-  angle = (abs(1500-steerAngle)/1500.0) * (abs(1500-outputs[leftMotor].actualPWM)/1500.0);
-  if ((steerAngle>1530 && outputs[leftMotor].actualPWM>1500) || (steerAngle<1470 && outputs[leftMotor].actualPWM<1500)) {
-    outputs[leftMotor].actualPWM = outputs[leftMotor].requiredPWM + int(outputs[leftMotor].requiredPWM * angle);
-    outputs[rightMotor].actualPWM = outputs[rightMotor].requiredPWM - int(outputs[rightMotor].requiredPWM * angle);
-  };
-  if ((steerAngle>1530 && outputs[leftMotor].actualPWM<1500) || (steerAngle<1470 && outputs[leftMotor].actualPWM>1500)){
-    outputs[leftMotor].actualPWM = outputs[leftMotor].requiredPWM - int(outputs[leftMotor].requiredPWM * angle);
-    outputs[rightMotor].actualPWM = outputs[rightMotor].requiredPWM + int(outputs[rightMotor].requiredPWM * angle);
-  };
+  steerAngle = invertPWM(outputs[steer].actualPWM); //Steering servo is head down
+  angle = (1500-steerAngle)/15.0;
+
+  outputs[leftMotor].actualPWM = outputs[leftMotor].actualPWM + int((outputs[leftMotor].actualPWM-1500.0) * float(angle/100.0));
+  outputs[rightMotor].actualPWM = outputs[rightMotor].actualPWM - int((outputs[rightMotor].actualPWM-1500.0) * float(angle/100.0));
 };
 
 void loop(){
+  float tmpPWM;
   int PWMmax;
   delay(10);
   //Check which values to set on output
   for(uint8_t pin=0; pin<13; pin++){
     if (outputs[pin].pinIn!=0){
       if (signals[outputs[pin].pinIn].isOn){
-        outputs[pin].requiredPWM = signals[outputs[pin].pinIn].len;
+        tmpPWM = float(signals[outputs[pin].pinIn].len);
+        outputs[pin].requiredPWM = 1500 + int((tmpPWM-1500.0) * float(outputs[pin].prcRatio/100.0));
         if (outputs[pin].invert){
           outputs[pin].requiredPWM = invertPWM(outputs[pin].requiredPWM);
         };
@@ -155,7 +156,7 @@ void loop(){
           if (PWMmax>abs(outputs[pin].requiredPWM-outputs[pin].actualPWM)){
              PWMmax = abs(outputs[pin].requiredPWM-outputs[pin].actualPWM);
           };
-          if (abs(outputs[pin].requiredPWM-outputs[pin].actualPWM)>30)
+          if (abs(outputs[pin].requiredPWM-outputs[pin].actualPWM)>18)
           {
             if (outputs[pin].requiredPWM>outputs[pin].actualPWM){
               outputs[pin].actualPWM = outputs[pin].actualPWM + PWMmax;
