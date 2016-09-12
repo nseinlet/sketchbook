@@ -16,12 +16,12 @@ U8GLIB_SSD1306_128X64 u8g(U8G_I2C_OPT_FAST);
 #include "FrSkySportSensorFlvss.h"
 #include "FrSkySportSensorGps.h"
 #include "FrSkySportSensorRpm.h"
-#include "FrSkySportSensorXjt.h"
+//#include "FrSkySportSensorXjt.h"
 #include "FrSkySportSingleWireSerial.h"
 #include "FrSkySportDecoder.h"
 #include "SoftwareSerial.h"
 
-FrSkySportSensorXjt xjt;                               //Receiver info
+//FrSkySportSensorXjt xjt;                               //Receiver info
 FrSkySportSensorFcs fcs;                               // FCS-40A sensor with default ID
 FrSkySportSensorFlvss flvss;                          // FLVSS sensor with default ID
 FrSkySportSensorGps gps;                               // GPS sensor with default ID
@@ -52,14 +52,15 @@ void setup(void) {
     u8g.setHiColorByRGB(255,255,255);
   }
   
-  pinMode(8, OUTPUT);
+//  pinMode(8, OUTPUT);
 
   /*SmartPort*/
-  decoder.begin(FrSkySportSingleWireSerial::SOFT_SERIAL_PIN_12, &xjt, &fcs, &flvss, &gps, &rpm1, &rpm2);
-//  Serial.begin(115200);
+  decoder.begin(FrSkySportSingleWireSerial::SOFT_SERIAL_PIN_12, &fcs, &flvss, &gps, &rpm1, &rpm2);
+//  decoder.begin(FrSkySportSingleWireSerial::SOFT_SERIAL_PIN_12, &xjt, &fcs, &flvss, &gps, &rpm1, &rpm2);
+  //Serial.begin(115200);
 }
 
-void drawScreen(String power, String voltage, float cell[], uint32_t rpm[], int32_t temp[], float rxbatt, String gps[]) {
+void drawScreen(String power, String voltage, float cell[], uint32_t rpm[], int32_t temp[], float rxbatt, String gps[], int rssi, int swr) {
   String tmp;
   
   u8g.setFont(u8g_font_courB10);
@@ -80,7 +81,7 @@ void drawScreen(String power, String voltage, float cell[], uint32_t rpm[], int3
   u8g.drawStr( 0, 64, tmp.c_str());
 }
 
-void drawScreen2(String power, String voltage, float cell[], uint32_t rpm[], int32_t temp[], float rxbatt, String gps[]) {
+void drawScreen2(String power, String voltage, float cell[], uint32_t rpm[], int32_t temp[], float rxbatt, String gps[], int rssi, int swr) {
   String tmp;
   
   u8g.setFont(u8g_font_courB10);
@@ -101,7 +102,7 @@ void drawScreen2(String power, String voltage, float cell[], uint32_t rpm[], int
   u8g.drawStr(0,  64, String(gps[5]).c_str()); //Datetime
 }
 
-void drawScreen3(String power, String voltage, float cell[], uint32_t rpm[], int32_t temp[], float rxbatt, String gps[]) {
+void drawScreen3(String power, String voltage, float cell[], uint32_t rpm[], int32_t temp[], float rxbatt, String gps[], int rssi, int swr) {
   String tmp;
   
   u8g.setFont(u8g_font_courB10);
@@ -131,7 +132,7 @@ void loop()
   // that that have been passed to the begin method. Print the AppID of the decoded data.
   decodeResult = decoder.decode();
   if(decodeResult != SENSOR_NO_DATA_ID) { Serial.print("Decoded data with AppID 0x"); Serial.println(decodeResult, HEX); }
-  
+
   // Display data once a second to not interfeere with data decoding
   currentTime = millis();
   if(currentTime > displayTime)
@@ -142,10 +143,13 @@ void loop()
       nbrdisp=0;
     }
     // Get basic XJT data (RSSI/ADC1/ADC2/RxBatt/SWR data)
-    int rssi=xjt.getRssi();
-    float rxbatt = xjt.getRxBatt();
-    int swr = xjt.getSwr();
-    
+//    int rssi=xjt.getRssi();
+//    float rxbatt = xjt.getRxBatt();
+//    int swr = xjt.getSwr();
+    int rssi=0;
+    float rxbatt = 0.0;
+    int swr = 0;
+
     // Get current/voltage sensor (FCS) data
     String power=String(fcs.getCurrent())+"A";
     String voltage=String(fcs.getVoltage())+"V";
@@ -164,15 +168,17 @@ void loop()
 
     u8g.firstPage();  
      do {
+
       if (nbrdisp<=5) {
-        drawScreen(power, voltage, c, rpm, temp, rxbatt, mygps);
+        drawScreen(power, voltage, c, rpm, temp, rxbatt, mygps, rssi, swr);
       } else {
         if (nbrdisp>10) {
-          drawScreen3(power, voltage, c, rpm, temp, rxbatt, mygps);
+          drawScreen3(power, voltage, c, rpm, temp, rxbatt, mygps, rssi, swr);
         } else {
-          drawScreen2(power, voltage, c, rpm, temp, rxbatt, mygps);
+          drawScreen2(power, voltage, c, rpm, temp, rxbatt, mygps, rssi, swr);
         }
       };
+
      } while( u8g.nextPage() );
   }
 }
