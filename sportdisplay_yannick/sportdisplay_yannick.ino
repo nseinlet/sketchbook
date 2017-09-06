@@ -14,15 +14,12 @@ U8GLIB_SSD1306_128X64 u8g(U8G_I2C_OPT_DEV_0|U8G_I2C_OPT_NO_ACK|U8G_I2C_OPT_FAST)
 #include "FrSkySportSensor.h"
 #include "FrSkySportSensorFcs.h"
 #include "FrSkySportSensorFlvss.h"
-#include "FrSkySportSensorRpm.h"
 #include "FrSkySportSingleWireSerial.h"
 #include "FrSkySportDecoder.h"
 #include "SoftwareSerial.h"
  
 FrSkySportSensorFcs fcs;                               // FCS-40A sensor with default ID
 FrSkySportSensorFlvss flvss;                          // FLVSS sensor with default ID
-FrSkySportSensorRpm rpm1;                               // RPM sensor with default ID
-FrSkySportSensorRpm rpm2(FrSkySportSensor::ID6);      // RPM sensor with given ID
 FrSkySportDecoder decoder;                             // Create decoder object without polling
 
 uint32_t currentTime, displayTime;
@@ -33,12 +30,12 @@ int ledState = LOW;
 void setup(void) {
   nbrdisp=0;
   /*SmartPort*/
-  decoder.begin(FrSkySportSingleWireSerial::SOFT_SERIAL_PIN_12, &fcs, &flvss, &rpm1, &rpm2);
+  decoder.begin(FrSkySportSingleWireSerial::SOFT_SERIAL_PIN_12, &fcs, &flvss);
   Serial.begin(115200);
   pinMode(LED_BUILTIN, OUTPUT);
 }
 
-void drawScreen(String power, String voltage, float cell[], uint32_t rpm[], int32_t temp[], float rxbatt, int rssi, int swr) {
+void drawScreen(String power, String voltage, float cell[], float rxbatt, int rssi, int swr) {
   String tmp;
   
   u8g.setFont(u8g_font_courB10);
@@ -59,30 +56,6 @@ void drawScreen(String power, String voltage, float cell[], uint32_t rpm[], int3
   u8g.drawStr( 0, 64, tmp.c_str());
 }
 
-void drawScreen2(String power, String voltage, float cell[], uint32_t rpm[], int32_t temp[], float rxbatt, int rssi, int swr) {
-  String tmp;
-  
-  u8g.setFont(u8g_font_courB10);
-  u8g.drawStr( 0, 12, power.c_str());
-  u8g.drawStr( 64, 12, voltage.c_str());
-
-  u8g.setFont(u8g_font_courR10);
-  tmp=String(temp[0])+" C";
-  u8g.drawStr(0,  26, tmp.c_str());
-  tmp=String(temp[0])+" C";
-  u8g.drawStr(64,  26, tmp.c_str());
-  tmp=String(temp[0])+" C";
-  u8g.drawStr(0,  40, tmp.c_str());
-  tmp=String(temp[0])+" C";
-  u8g.drawStr(64,  40, tmp.c_str());
-
-  u8g.setFont(u8g_font_courB10);
-  tmp = String(rpm[0])+"T/m";
-  u8g.drawStr( 0, 63, tmp.c_str());
-  tmp = String(rpm[1])+"T/m";
-  u8g.drawStr( 64, 63, tmp.c_str());
-}
-
 void blinking()
 {
   if (ledState == LOW) {
@@ -95,10 +68,7 @@ void blinking()
 
 void loop()
 {
-  // Read and decode the telemetry data, note that the data will only be decoded for sensors
-  // that that have been passed to the begin method. Print the AppID of the decoded data.
   decodeResult = decoder.decode();
-//  if(decodeResult != SENSOR_NO_DATA_ID) { Serial.print("Decoded data with AppID 0x"); Serial.println(decodeResult, HEX); }
   
   // Display data once a second to not interfeere with data decoding
   currentTime = millis();
@@ -120,22 +90,11 @@ void loop()
   
     // Get LiPo voltage sensor (FLVSS) data
     float c[4]={flvss.getCell1(), flvss.getCell2(), flvss.getCell3(), flvss.getCell4()};
-   
-    // Get RPM/temperature sensor data
-    uint32_t rpm[2] = {rpm1.getRpm(), rpm2.getRpm()};
-    int32_t temp[4] = {rpm1.getT1(), rpm1.getT2(), rpm2.getT1(), rpm2.getT2()}; // Temperature #1 in degrees Celsuis (can be negative, will be rounded)
 
     u8g.firstPage();  
      do {
       blinking();
-//      Serial.println(power);
-//      Serial.println(rxbatt);
-      if (nbrdisp<=5) {
-        drawScreen(power, voltage, c, rpm, temp, rxbatt, rssi, swr);
-      } else {
-        drawScreen2(power, voltage, c, rpm, temp, rxbatt, rssi, swr);
-      };
-
+        drawScreen(power, voltage, c, rxbatt, rssi, swr);
      } while( u8g.nextPage() );
   }
 }
