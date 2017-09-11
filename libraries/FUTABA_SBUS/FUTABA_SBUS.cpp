@@ -1,13 +1,14 @@
 #include "FUTABA_SBUS.h"
 
-void FUTABA_SBUS::begin(){
+void FUTABA_SBUS::begin(SoftwareSerial *_port){
+	port = _port;
 	uint8_t loc_sbusData[25] = {
 	  0x0f,0x01,0x04,0x20,0x00,0xff,0x07,0x40,0x00,0x02,0x10,0x80,0x2c,0x64,0x21,0x0b,0x59,0x08,0x40,0x00,0x02,0x10,0x80,0x00,0x00};
 	int16_t loc_channels[18]  = {
 	  		1023,1023,1023,1023,1023,1023,1023,1023,1023,1023,1023,1023,1023,1023,1023,1023,0,0};
 	int16_t loc_servos[18]    = {
   			1023,1023,1023,1023,1023,1023,1023,1023,1023,1023,1023,1023,1023,1023,1023,1023,0,0};
-  	port.begin(BAUDRATE);
+  	port->begin(BAUDRATE);
 
 	memcpy(sbusData,loc_sbusData,25);
 	memcpy(channels,loc_channels,18);
@@ -124,9 +125,9 @@ void FUTABA_SBUS::UpdateServos(void) {
   }
   // send data out
   //serialPort.write(sbusData,25);
-  for (i=0;i<25;i++) {
-    port.write(sbusData[i]);
-  }
+  // for (i=0;i<25;i++) {
+  //   port->write(sbusData[i]);
+  // }
 }
 void FUTABA_SBUS::UpdateChannels(void) {
   //uint8_t i;
@@ -203,14 +204,14 @@ void FUTABA_SBUS::UpdateChannels(void) {
 
 }
 void FUTABA_SBUS::FeedLine(void){
-  if (port.available() > 24){
-    while(port.available() > 0){
-      inData = port.read();
+  if (port->available() > 24){
+    while(port->available() > 0){
+      inData = port->read();
       switch (feedState){
       case 0:
         if (inData != 0x0f){
-          while(port.available() > 0){//read the contents of in buffer this should resync the transmission
-            inData = port.read();
+          while(port->available() > 0){//read the contents of in buffer this should resync the transmission
+            inData = port->read();
           }
           return;
         }
@@ -224,7 +225,7 @@ void FUTABA_SBUS::FeedLine(void){
       case 1:
         bufferIndex ++;
         inBuffer[bufferIndex] = inData;
-        if (bufferIndex < 24 && port.available() == 0){
+        if (bufferIndex < 24 && port->available() == 0){
           feedState = 0;
         }
         if (bufferIndex == 24){

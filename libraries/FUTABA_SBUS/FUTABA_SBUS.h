@@ -8,10 +8,9 @@
 #define SBUS_SIGNAL_OK          0x00
 #define SBUS_SIGNAL_LOST        0x01
 #define SBUS_SIGNAL_FAILSAFE    0x03
-#define BAUDRATE 100000
+#define BAUDRATE 97000
 
-#define port SoftwareSerial(10,11)
-#define ALL_CHANNELS
+// #define ALL_CHANNELS
 
 class FUTABA_SBUS
 {
@@ -22,7 +21,8 @@ class FUTABA_SBUS
 		uint8_t  failsafe_status;
 		int sbus_passthrough;
 		int toChannels;
-		void begin(void);
+		SoftwareSerial * port;
+		void begin(SoftwareSerial*);
 		int16_t Channel(uint8_t ch);
 		uint8_t DigiChannel(uint8_t ch);
 		void Servo(uint8_t ch, int16_t position);
