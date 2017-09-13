@@ -3,15 +3,15 @@
 #define FUTABA_SBUS_h
 
 #include <Arduino.h>
-#include <SoftwareSerial.h>
+
 
 #define SBUS_SIGNAL_OK          0x00
 #define SBUS_SIGNAL_LOST        0x01
 #define SBUS_SIGNAL_FAILSAFE    0x03
-#define BAUDRATE 100000
+#define BAUDRATE 98000
+#define port Serial
+//#define ALL_CHANNELS
 
-#define port SoftwareSerial(10,11)
-#define ALL_CHANNELS
 
 class FUTABA_SBUS
 {
@@ -43,6 +43,7 @@ class FUTABA_SBUS
 		int bufferIndex;
 		uint8_t inData;
 		int feedState;
+
 };
 
 #endif

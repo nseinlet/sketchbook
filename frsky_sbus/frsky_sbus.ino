@@ -1,82 +1,34 @@
-#include <SBUS.h>
-#include <SoftwareSerial.h>
+#include <FUTABA_SBUS.h>
 
-SoftwareSerial mySerial(10, 11);
-SBUS sbus(mySerial);
+FUTABA_SBUS sBus;
+int CH1Pin = 3;
+int CH2Pin = 5;
+int CH3Pin = 6;
+int CH4Pin = 9;
+int CH5Pin = 10;
+int CH6Pin = 11;
 
-void setup()
-{
-  sbus.begin();
-  Serial.begin(115200);
-  Serial.println("SBUS Status");
+void setup(){
+  sBus.begin();
+  pinMode(CH1Pin, OUTPUT);
+  pinMode(CH2Pin, OUTPUT);
+  pinMode(CH3Pin, OUTPUT);
+  pinMode(CH4Pin, OUTPUT);
+  pinMode(CH5Pin, OUTPUT);
+  pinMode(CH6Pin, OUTPUT);
 }
 
-// this is timer2, which triggers ever 1ms and processes the incoming SBUS datastream
-ISR(TIMER2_COMPA_vect)
-{
-  sbus.process();
-}
-
-void loop()
-{
+void loop(){
+  
   delay(300);
-  printSBUSStatus();
-}
-
-void printSBUSStatus()
-{
-  Serial.print("Ch1  ");
-  Serial.println(sbus.getNormalizedChannel(1));
-  Serial.print("Ch2  ");
-  Serial.println(sbus.getNormalizedChannel(2));
-  Serial.print("Ch3  ");
-  Serial.println(sbus.getNormalizedChannel(3));
-  Serial.print("Ch4  ");
-  Serial.println(sbus.getNormalizedChannel(4));
-  Serial.print("Ch5  ");
-  Serial.println(sbus.getNormalizedChannel(5));
-  Serial.print("Ch6  ");
-  Serial.println(sbus.getNormalizedChannel(6));
-  Serial.print("Ch7  ");
-  Serial.println(sbus.getNormalizedChannel(7));
-  Serial.print("Ch8  ");
-  Serial.println(sbus.getNormalizedChannel(8));
-  Serial.print("Ch9  ");
-  Serial.println(sbus.getNormalizedChannel(9));
-  Serial.print("Ch10 ");
-  Serial.println(sbus.getNormalizedChannel(10));
-  Serial.print("Ch11 ");
-  Serial.println(sbus.getNormalizedChannel(11));
-  Serial.print("Ch12 ");
-  Serial.println(sbus.getNormalizedChannel(12));
-  Serial.print("Ch13 ");
-  Serial.println(sbus.getNormalizedChannel(13));
-  Serial.print("Ch14 ");
-  Serial.println(sbus.getNormalizedChannel(14));
-  Serial.print("Ch15 ");
-  Serial.println(sbus.getNormalizedChannel(15));
-  Serial.print("Ch16 ");
-  Serial.println(sbus.getNormalizedChannel(16));
-  Serial.println();
-  Serial.print("Failsafe: ");
-  if (sbus.getFailsafeStatus() == SBUS_FAILSAFE_ACTIVE) {
-    Serial.println("Active");
+  sBus.FeedLine();
+  if (sBus.toChannels == 1){
+    sBus.UpdateServos();
+    sBus.UpdateChannels();
+    sBus.toChannels = 0;
+    analogWrite(CH1Pin, sBus.channels[0] / 4);
+    analogWrite(CH2Pin, sBus.channels[0] / 4);
+    analogWrite(CH3Pin, sBus.channels[3] / 4);
+    analogWrite(CH4Pin, sBus.channels[12] / 4);
   }
-  if (sbus.getFailsafeStatus() == SBUS_FAILSAFE_INACTIVE) {
-    Serial.println("Not Active");
-  }
-
-  Serial.print("Data loss on connection: ");
-  Serial.print(sbus.getFrameLoss());
-  Serial.println("%");
-
-  Serial.print("Frames: ");
-  Serial.print(sbus.getGoodFrames());
-  Serial.print(" / ");
-  Serial.print(sbus.getLostFrames());
-  Serial.print(" / ");
-  Serial.println(sbus.getDecoderErrorFrames());
-
-  Serial.print("Time diff: ");
-  Serial.print(millis() - sbus.getLastTime());
 }
