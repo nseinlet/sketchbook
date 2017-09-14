@@ -1,34 +1,34 @@
 #include <FUTABA_SBUS.h>
+#include <Servo.h>
 
 FUTABA_SBUS sBus;
-int CH1Pin = 3;
-int CH2Pin = 5;
-int CH3Pin = 6;
-int CH4Pin = 9;
-int CH5Pin = 10;
-int CH6Pin = 11;
+Servo myservo[6];
+int PWMMin = 1500-768;
+int PWMMax = 1500+768;
+int AngleMin = 10;
+int AngleMax = 180;
 
 void setup(){
   sBus.begin();
-  pinMode(CH1Pin, OUTPUT);
-  pinMode(CH2Pin, OUTPUT);
-  pinMode(CH3Pin, OUTPUT);
-  pinMode(CH4Pin, OUTPUT);
-  pinMode(CH5Pin, OUTPUT);
-  pinMode(CH6Pin, OUTPUT);
+  myservo[0].attach(3);
+  myservo[1].attach(5);
+  myservo[2].attach(6);
+  myservo[3].attach(9);
+  myservo[4].attach(10);
+  myservo[5].attach(11);
 }
 
 void loop(){
-  
   delay(300);
   sBus.FeedLine();
   if (sBus.toChannels == 1){
     sBus.UpdateServos();
     sBus.UpdateChannels();
     sBus.toChannels = 0;
-    analogWrite(CH1Pin, sBus.channels[0] / 4);
-    analogWrite(CH2Pin, sBus.channels[0] / 4);
-    analogWrite(CH3Pin, sBus.channels[3] / 4);
-    analogWrite(CH4Pin, sBus.channels[12] / 4);
+
+    myservo[0].write(map(sBus.channels[0], PWMMin, PWMMax, AngleMin, AngleMax));  
+    myservo[1].write(map(sBus.channels[0], PWMMin, PWMMax, AngleMin, AngleMax));
+    myservo[2].write(map(sBus.channels[3], PWMMin, PWMMax, AngleMin, AngleMax));
+    myservo[3].write(map(sBus.channels[12], PWMMin, PWMMax, AngleMin, AngleMax));
   }
 }
