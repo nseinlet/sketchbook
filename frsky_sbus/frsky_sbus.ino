@@ -8,7 +8,7 @@
  * Display them on a 1inch display             *
  ***********************************************/
 
-#include <FUTABA_SBUS.h>
+#include <Modelisme.h>
 #include <Servo.h>
 #include "U8glib.h"
 
@@ -159,31 +159,10 @@ static unsigned char lights_bits[] U8G_PROGMEM = {
    0x03, 0xfe, 0x00, 0x00, 0xc0, 0x3f, 0xfe, 0x00, 0x00, 0x80, 0x3f, 0x1c,
    0x00, 0x00, 0x00, 0x1c };
    
-//Manage PWM Signals
-const int PWMMin = 170;
-const int PWMMax = 1800;
-const int AngleMin = 5;
-const int AngleMax = 175;
-
-//Decode SBUS
-FUTABA_SBUS sBus;
-
-//Store canal value
-struct channel {
-  unsigned long when;
-  int pwmvalue;
-  int angle;
-  byte b;
-};
-struct stateHistory {
-  int state;
-  unsigned long timing;
-};
-
-stateHistory ligthHistory[6];
+Receiver rec;
+LightManager lm(&(rec.channels[12]), &(rec.channels[1]), &(rec.channels[4]));
 
 Servo myservo[6];
-channel channels[16];
 
 //Display management
 int currentTime;
@@ -191,56 +170,27 @@ int displayTime;
 int nbrdisp=0;
 int displayCounter=0;
 
-//Lights management
-bool rWarn=false;
-bool lWarn=false;
-bool brake=false;
-bool rear=false;
-bool lights=false;
-bool highlights=false;
-bool warnings=false;
-bool turningWarn=false;
-
-//Canal for light management
-const int throttleCanal = 1;
-const int lightCanal = 12;
-
-//Blinking management
-bool blinkstate = false;
-int blinktime = 0;
-
 void setup(){
-  sBus.begin();
+  rec.setup();
   myservo[0].attach(3);
   myservo[1].attach(5);
   myservo[2].attach(6);
   myservo[3].attach(9);
   myservo[4].attach(10);
   myservo[5].attach(11);
-  resetLigthCanalHistory();
 }
 
 void loop(){
   delay(75);
-  sBus.FeedLine();
-  if (sBus.toChannels == 1){
-    sBus.UpdateServos();
-    sBus.UpdateChannels();
-    sBus.toChannels = 0;
-    for (int x; x<16; x++) {
-      channels[x].when = millis();
-      channels[x].pwmvalue = sBus.channels[x];
-      channels[x].angle = pwmToDeg(channels[x].pwmvalue);
-    }
-    myservo[0].write(channels[0].angle);  
-    myservo[1].write(channels[0].angle);
-    myservo[2].write(channels[2].angle);
-    myservo[3].write(channels[12].angle);
+  if (rec.read()==1){
+    myservo[0].write(rec.channels[0].angle);  
+    myservo[1].write(rec.channels[0].angle);
+    myservo[2].write(rec.channels[2].angle);
+    myservo[3].write(rec.channels[12].angle);
   };
+  
   //Manage ligths
-  LigthCanalHistory();
-  blinking();
-  checkLights();
+  lm.checkLights();
   
   //Display
   displayCounter++;
@@ -250,145 +200,18 @@ void loop(){
   }
 }
 
-int pwmToDeg(int pwmvalue){
-  return map(pwmvalue, PWMMin, PWMMax, AngleMin, AngleMax);
-};
-
-int canalToHighLow(channel can) {
-  //Check if a canal is high, low or neutral, to help managing history of ligth canal
-  if (can.angle>115){
-    return 1;
-  } else if (can.angle<75){
-    return -1;
-  } else {
-    return 0;
-  }
-  
-};
-
-void LigthCanalHistory() {
-  //Manage history of the ligth canal
-  //Check sequences of type 3x High, 2x Low, ... to manage multiple functions on 1 canal
-  int state = canalToHighLow(channels[lightCanal]);
-  if (state!=ligthHistory[0].state){
-    //Do not store the middle values
-    if (ligthHistory[0].state!=0) {
-      for (int i=6;i>0;i--){
-        ligthHistory[i].state=ligthHistory[i-1].state;
-        ligthHistory[i].timing=ligthHistory[i-1].timing;
-      };
-    };
-    ligthHistory[0].state = state;
-    ligthHistory[0].timing = millis();
-  };
-};
-
-void resetLigthCanalHistory(){
-  for (int i=0;i<6;i++){
-    ligthHistory[i].state=0;
-    ligthHistory[i].timing=0;
-  }
-}
-
-unsigned long getMaxHistoryTime(){
-  unsigned long res=ligthHistory[0].timing;
-  for (int i=1;i<6;i++){
-    if (ligthHistory[i].timing>0 and ligthHistory[i].timing<res){
-      res=ligthHistory[i].timing;
-    }
-  };
-  return res;
-};
-
-int getMaxHistoryLength(){
-  int res=0;
-  bool toContinue=true;
-  int state=0;
-  
-  //If history[0]==0, means switch is neutral, need to check from pos 1
-  int startpos=0;
-  if (ligthHistory[0].state==0){startpos=1;};
-  if (ligthHistory[startpos].state!=0){
-    state=ligthHistory[startpos].state;
-    for (int i=startpos;i<6 && toContinue;i++){
-      if (ligthHistory[i].state==state && ligthHistory[i].timing>0){
-        res++;
-      }
-    }
-  }
-  return res;
-};
-
-int getHistoryState(){
-  if (ligthHistory[0].state==0) {
-    return ligthHistory[1].state;
-  };
-  return ligthHistory[0].state;
-};
-
-void checkLights() {
-  if (channels[throttleCanal].angle<80){
-    rear = true;
-  } else {
-    rear = false;
-  };
-  //Check lightHistoryCanal for a pattern
-  //First, check if we reached the timing
-  unsigned long actualTime = millis();
-  //Max 3s, and at least one hit / 1.3sec
-  if (ligthHistory[0].timing>0 && (actualTime-getMaxHistoryTime()>3000 || actualTime-ligthHistory[0].timing>1300)) {
-    int state=getHistoryState();
-    int pattern=getMaxHistoryLength();
-    if (state!=0 && pattern>0){
-      //Check the pattern
-      if (state==1 && pattern==1){
-        rWarn=not rWarn;
-        if (rWarn) lWarn=false;
-      } else if (state==-1 && pattern==1){
-        lWarn=not lWarn;
-        if (lWarn) rWarn=false;
-      } else if (state==1 && pattern==2){
-        warnings=not warnings;
-        if (warnings){
-          rWarn=false;
-          lWarn=false;
-        }
-      } else if (state==-1 && pattern==2){
-        turningWarn=not turningWarn;
-      } else if (state==1 && pattern==3){
-        lights=not lights;
-      } else if (state==-1 && pattern==3){
-        highlights=not highlights;
-      };
-    };
-    resetLigthCanalHistory();
-  }
-};
-
-void blinking() {
-  if (millis()-blinktime >= 750) {
-    if (blinkstate) {
-      blinkstate=false;
-    } else {
-      blinkstate=true;
-    }
-    blinktime = millis();
-  }
-};
-
-
 void drawingScreenChooser(){
   if (millis()<10000){
     nbrdisp=0;
-  } else if (channels[14].angle<30){
+  } else if (rec.channels[14].angle<30){
     nbrdisp=0;
-  } else if (channels[14].angle<60){
+  } else if (rec.channels[14].angle<60){
     nbrdisp=1;
-  } else if (channels[14].angle<90){
+  } else if (rec.channels[14].angle<90){
     nbrdisp=2;
-  } else if (channels[14].angle<120){
+  } else if (rec.channels[14].angle<120){
     nbrdisp=3;
-  } else if (channels[14].angle<150){
+  } else if (rec.channels[14].angle<150){
     nbrdisp=4;
   } else {
     nbrdisp=0;
@@ -401,71 +224,71 @@ void drawScreen(int screenNumber){
     u8g.drawXBMP( 4, 12, Logo_challenger_width, Logo_challenger_height, Logo_challenger_bits);
   } else if (screenNumber==1){
     u8g.drawXBMP( 6, 34, Logo_challenger_small_width, Logo_challenger_small_height, Logo_challenger_small_bits);
-    if ((lWarn || warnings) && blinkstate) {
+    if ((lm.lWarn || lm.warnings) && lm.blinkstate) {
       u8g.drawXBMP( 1, 1, lwarn_width, lwarn_height, lwarn_bits);
     };
-    if (brake) {
+    if (lm.brake) {
       u8g.drawXBMP( 31, 1, brake_width, brake_height, brake_bits);
     };
-    if (lights) {
+    if (lm.lights) {
       u8g.drawXBMP( 63, 1, lights_width, lights_height, lights_bits);
     };
-    if ((rWarn || warnings) && blinkstate) {
+    if ((lm.rWarn || lm.warnings) && lm.blinkstate) {
       u8g.drawXBMP( 102, 1, rwarn_width, rwarn_height, rwarn_bits);
     };
   } else if (screenNumber==2){
     //Servos values
     u8g.setFont(u8g_font_courR10);
-    u8g.drawStr(0, 12, String(channels[0].angle).c_str());
-    u8g.drawStr(0, 26, String(channels[1].angle).c_str());
-    u8g.drawStr(0, 40, String(channels[2].angle).c_str());
-    u8g.drawStr(0, 54, String(channels[3].angle).c_str());
-    u8g.drawStr(32, 12, String(channels[4].angle).c_str());
-    u8g.drawStr(32, 26, String(channels[5].angle).c_str());
-    u8g.drawStr(32, 40, String(channels[6].angle).c_str());
-    u8g.drawStr(32, 54, String(channels[7].angle).c_str());
-    u8g.drawStr(64, 12, String(channels[8].angle).c_str());
-    u8g.drawStr(64, 26, String(channels[9].angle).c_str());
-    u8g.drawStr(64, 40, String(channels[10].angle).c_str());
-    u8g.drawStr(64, 54, String(channels[11].angle).c_str());
-    u8g.drawStr(96, 12, String(channels[12].angle).c_str());
-    u8g.drawStr(96, 26, String(channels[13].angle).c_str());
-    u8g.drawStr(96, 40, String(channels[14].angle).c_str());
-    u8g.drawStr(96, 54, String(channels[15].angle).c_str());
+    u8g.drawStr(0, 12, String(rec.channels[0].angle).c_str());
+    u8g.drawStr(0, 26, String(rec.channels[1].angle).c_str());
+    u8g.drawStr(0, 40, String(rec.channels[2].angle).c_str());
+    u8g.drawStr(0, 54, String(rec.channels[3].angle).c_str());
+    u8g.drawStr(32, 12, String(rec.channels[4].angle).c_str());
+    u8g.drawStr(32, 26, String(rec.channels[5].angle).c_str());
+    u8g.drawStr(32, 40, String(rec.channels[6].angle).c_str());
+    u8g.drawStr(32, 54, String(rec.channels[7].angle).c_str());
+    u8g.drawStr(64, 12, String(rec.channels[8].angle).c_str());
+    u8g.drawStr(64, 26, String(rec.channels[9].angle).c_str());
+    u8g.drawStr(64, 40, String(rec.channels[10].angle).c_str());
+    u8g.drawStr(64, 54, String(rec.channels[11].angle).c_str());
+    u8g.drawStr(96, 12, String(rec.channels[12].angle).c_str());
+    u8g.drawStr(96, 26, String(rec.channels[13].angle).c_str());
+    u8g.drawStr(96, 40, String(rec.channels[14].angle).c_str());
+    u8g.drawStr(96, 54, String(rec.channels[15].angle).c_str());
   } else if (screenNumber==3){
     //PWM values
     u8g.setFont(u8g_font_courR10);
-    u8g.drawStr(0, 12, String(channels[0].pwmvalue).c_str());
-    u8g.drawStr(0, 26, String(channels[1].pwmvalue).c_str());
-    u8g.drawStr(0, 40, String(channels[2].pwmvalue).c_str());
-    u8g.drawStr(0, 54, String(channels[3].pwmvalue).c_str());
-    u8g.drawStr(32, 12, String(channels[4].pwmvalue).c_str());
-    u8g.drawStr(32, 26, String(channels[5].pwmvalue).c_str());
-    u8g.drawStr(32, 40, String(channels[6].pwmvalue).c_str());
-    u8g.drawStr(32, 54, String(channels[7].pwmvalue).c_str());
-    u8g.drawStr(64, 12, String(channels[8].pwmvalue).c_str());
-    u8g.drawStr(64, 26, String(channels[9].pwmvalue).c_str());
-    u8g.drawStr(64, 40, String(channels[10].pwmvalue).c_str());
-    u8g.drawStr(64, 54, String(channels[11].pwmvalue).c_str());
-    u8g.drawStr(96, 12, String(channels[12].pwmvalue).c_str());
-    u8g.drawStr(96, 26, String(channels[13].pwmvalue).c_str());
-    u8g.drawStr(96, 40, String(channels[14].pwmvalue).c_str());
-    u8g.drawStr(96, 54, String(channels[15].pwmvalue).c_str());
+    u8g.drawStr(0, 12, String(rec.channels[0].pwmvalue).c_str());
+    u8g.drawStr(0, 26, String(rec.channels[1].pwmvalue).c_str());
+    u8g.drawStr(0, 40, String(rec.channels[2].pwmvalue).c_str());
+    u8g.drawStr(0, 54, String(rec.channels[3].pwmvalue).c_str());
+    u8g.drawStr(32, 12, String(rec.channels[4].pwmvalue).c_str());
+    u8g.drawStr(32, 26, String(rec.channels[5].pwmvalue).c_str());
+    u8g.drawStr(32, 40, String(rec.channels[6].pwmvalue).c_str());
+    u8g.drawStr(32, 54, String(rec.channels[7].pwmvalue).c_str());
+    u8g.drawStr(64, 12, String(rec.channels[8].pwmvalue).c_str());
+    u8g.drawStr(64, 26, String(rec.channels[9].pwmvalue).c_str());
+    u8g.drawStr(64, 40, String(rec.channels[10].pwmvalue).c_str());
+    u8g.drawStr(64, 54, String(rec.channels[11].pwmvalue).c_str());
+    u8g.drawStr(96, 12, String(rec.channels[12].pwmvalue).c_str());
+    u8g.drawStr(96, 26, String(rec.channels[13].pwmvalue).c_str());
+    u8g.drawStr(96, 40, String(rec.channels[14].pwmvalue).c_str());
+    u8g.drawStr(96, 54, String(rec.channels[15].pwmvalue).c_str());
   } else if (screenNumber==4){
     //Light canal history
     u8g.setFont(u8g_font_courR10);
-    u8g.drawStr(0, 12, String(ligthHistory[0].state).c_str());
-    u8g.drawStr(0, 26, String(ligthHistory[0].timing).c_str());
-    u8g.drawStr(0, 40, String(ligthHistory[1].state).c_str());
-    u8g.drawStr(0, 54, String(ligthHistory[1].timing).c_str());
-    u8g.drawStr(40, 12, String(ligthHistory[2].state).c_str());
-    u8g.drawStr(40, 26, String(ligthHistory[2].timing).c_str());
-    u8g.drawStr(40, 40, String(ligthHistory[3].state).c_str());
-    u8g.drawStr(40, 54, String(ligthHistory[3].timing).c_str());
-    u8g.drawStr(80, 12, String(ligthHistory[4].state).c_str());
-    u8g.drawStr(80, 26, String(ligthHistory[4].timing).c_str());
-    u8g.drawStr(80, 40, String(ligthHistory[5].state).c_str());
-    u8g.drawStr(80, 54, String(ligthHistory[5].timing).c_str());
+    u8g.drawStr(0, 12, String(rec.channels[12].ligthHistory[0].state).c_str());
+    u8g.drawStr(0, 26, String(rec.channels[12].ligthHistory[0].timing).c_str());
+    u8g.drawStr(0, 40, String(rec.channels[12].ligthHistory[1].state).c_str());
+    u8g.drawStr(0, 54, String(rec.channels[12].ligthHistory[1].timing).c_str());
+    u8g.drawStr(40, 12, String(rec.channels[12].ligthHistory[2].state).c_str());
+    u8g.drawStr(40, 26, String(rec.channels[12].ligthHistory[2].timing).c_str());
+    u8g.drawStr(40, 40, String(rec.channels[12].ligthHistory[3].state).c_str());
+    u8g.drawStr(40, 54, String(rec.channels[12].ligthHistory[3].timing).c_str());
+    u8g.drawStr(80, 12, String(rec.channels[12].ligthHistory[4].state).c_str());
+    u8g.drawStr(80, 26, String(rec.channels[12].ligthHistory[4].timing).c_str());
+    u8g.drawStr(80, 40, String(rec.channels[12].ligthHistory[5].state).c_str());
+    u8g.drawStr(80, 54, String(rec.channels[12].ligthHistory[5].timing).c_str());
   };
 }
 

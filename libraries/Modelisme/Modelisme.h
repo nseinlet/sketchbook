@@ -16,34 +16,75 @@
 #ifndef Modelisme_h
 #define Modelisme_h
 
+#define PWMMin   170
+#define PWMMax   1800
+#define AngleMin 5
+#define AngleMax 175
+
 #include "Arduino.h"
-#include <PinChangeInt.h>
-#include <Servo.h>
+#include <FUTABA_SBUS.h>
 
-struct sig {
-  volatile boolean isOn;
-  volatile unsigned long start;
-  volatile int len;
-};
-typedef struct sig Sig;
-
-struct serv {
-  volatile int angleactu;
-  volatile int anglerequis;
-  volatile int pinIn;
-  volatile boolean invert;
-  volatile unsigned long tempo;
-  volatile unsigned long lastMove;
-  Servo outservo;
-};
-typedef struct serv Serv;
-
-class Modelisme
-{
+class ReceiverCanalHistory {
   public:
-      Serv sorties[13] = {0};
+    int state;
+    unsigned long timing;
+    ReceiverCanalHistory();
+};
+
+class ReceiverCanal {
+  public:
+    unsigned long when;
+    int pwmvalue;
+    int angle;
+    bool manageHistory;
+    ReceiverCanalHistory ligthHistory[6];
+
+    ReceiverCanal();
+    int pwmToDeg();
+    int canalToHighLow();
+    void manageTheHistory();
+    void resetHistory();
+    unsigned long getMaxHistoryTime();
+    int getMaxHistoryLength();
+    int getHistoryState();
+
+};
+
+class Receiver {
+  public:
+    ReceiverCanal channels[16];
+
+    void setup();
+    int read();
+
   private:
-      Sig signals[13] = {0};
+    FUTABA_SBUS sBus;
+};
+
+class LightManager {
+  public:
+    bool rWarn;
+    bool lWarn;
+    bool brake;
+    bool rear;
+    bool lights;
+    bool highlights;
+    bool warnings;
+    bool turningWarn;
+    bool blinkstate;
+
+    LightManager(ReceiverCanal*);
+    LightManager(ReceiverCanal*, ReceiverCanal*);
+    LightManager(ReceiverCanal*, ReceiverCanal*, ReceiverCanal*);
+    void checkLights();
+
+  private:
+    ReceiverCanal* canal;
+    ReceiverCanal* throttleCanal;
+    ReceiverCanal* steeringCanal;
+    unsigned long blinktime;
+
+    void _blinking();
 };
 
 #endif
