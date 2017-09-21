@@ -21,33 +21,19 @@
 #define AngleMin 5
 #define AngleMax 175
 
+#define MAX_LM_HISTORY 5
+
 #include "Arduino.h"
 #include <FUTABA_SBUS.h>
-
-class ReceiverCanalHistory {
-  public:
-    int state;
-    unsigned long timing;
-    ReceiverCanalHistory();
-};
 
 class ReceiverCanal {
   public:
     unsigned long when;
     int pwmvalue;
     int angle;
-    bool manageHistory;
-    ReceiverCanalHistory ligthHistory[6];
 
     ReceiverCanal();
     int pwmToDeg();
-    int canalToHighLow();
-    void manageTheHistory();
-    void resetHistory();
-    unsigned long getMaxHistoryTime();
-    int getMaxHistoryLength();
-    int getHistoryState();
-
 };
 
 class Receiver {
@@ -61,6 +47,42 @@ class Receiver {
     FUTABA_SBUS sBus;
 };
 
+class LightManagerHistoryLine {
+  public:
+    int state;
+    unsigned long timing;
+
+    LightManagerHistoryLine();
+};
+
+class LightManagerHistory {
+  public:
+    LightManagerHistoryLine history[MAX_LM_HISTORY];
+
+    void manageTheHistory(int);
+    void resetHistory();
+    unsigned long getMaxHistoryTime();
+    int getMaxHistoryLength();
+    int getHistoryState();
+
+  private:
+    int canalToHighLow(int);
+};
+
+class ChannelHistoryLine {
+  public:
+    int angle;
+    unsigned long timing;
+    ChannelHistoryLine();
+};
+
+class ChannelHistory {
+  public:
+    ChannelHistoryLine history[MAX_LM_HISTORY];
+
+    void manageTheHistory(int);
+};
+
 class LightManager {
   public:
     bool rWarn;
@@ -72,18 +94,21 @@ class LightManager {
     bool warnings;
     bool turningWarn;
     bool blinkstate;
+    ReceiverCanal* canal;
+    ReceiverCanal* steeringCanal;
+    ReceiverCanal* throttleCanal;
+    unsigned long blinktime;
+    LightManagerHistory lightHistory;
+    ChannelHistory steerHistory;
+    ChannelHistory throttleHistory;
 
     LightManager(ReceiverCanal*);
     LightManager(ReceiverCanal*, ReceiverCanal*);
     LightManager(ReceiverCanal*, ReceiverCanal*, ReceiverCanal*);
     void checkLights();
-
+      
   private:
-    ReceiverCanal* canal;
-    ReceiverCanal* throttleCanal;
-    ReceiverCanal* steeringCanal;
-    unsigned long blinktime;
-
+    void _setup();
     void _blinking();
 };
 

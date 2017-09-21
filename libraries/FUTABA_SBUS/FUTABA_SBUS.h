@@ -12,7 +12,6 @@
 #define port Serial
 #define ALL_CHANNELS
 
-
 class FUTABA_SBUS
 {
 	public:
