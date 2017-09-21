@@ -172,12 +172,12 @@ int displayCounter=0;
 
 void setup(){
   rec.setup();
-  myservo[0].attach(3);
-  myservo[1].attach(5);
-  myservo[2].attach(6);
-  myservo[3].attach(9);
-  myservo[4].attach(10);
-  myservo[5].attach(11);
+  myservo[0].attach(7);
+  myservo[1].attach(8);
+  myservo[2].attach(9);
+  myservo[3].attach(10);
+  myservo[4].attach(11);
+  myservo[5].attach(12);
 }
 
 void loop(){
@@ -224,18 +224,18 @@ void drawScreen(int screenNumber){
     u8g.drawXBMP( 4, 12, Logo_challenger_width, Logo_challenger_height, Logo_challenger_bits);
   } else if (screenNumber==1){
     u8g.drawXBMP( 6, 34, Logo_challenger_small_width, Logo_challenger_small_height, Logo_challenger_small_bits);
-    if ((lm.lWarn || lm.warnings) && lm.blinkstate) {
-      u8g.drawXBMP( 1, 1, lwarn_width, lwarn_height, lwarn_bits);
-    };
-    if (lm.brake) {
-      u8g.drawXBMP( 31, 1, brake_width, brake_height, brake_bits);
-    };
-    if (lm.lights) {
-      u8g.drawXBMP( 63, 1, lights_width, lights_height, lights_bits);
-    };
-    if ((lm.rWarn || lm.warnings) && lm.blinkstate) {
-      u8g.drawXBMP( 102, 1, rwarn_width, rwarn_height, rwarn_bits);
-    };
+//    if ((lm.lWarn || lm.warnings) && lm.blinkstate) {
+//      u8g.drawXBMP( 1, 1, lwarn_width, lwarn_height, lwarn_bits);
+//    };
+//    if (lm.brake) {
+//      u8g.drawXBMP( 31, 1, brake_width, brake_height, brake_bits);
+//    };
+//    if (lm.lights) {
+//      u8g.drawXBMP( 63, 1, lights_width, lights_height, lights_bits);
+//    };
+//    if ((lm.rWarn || lm.warnings) && lm.blinkstate) {
+//      u8g.drawXBMP( 102, 1, rwarn_width, rwarn_height, rwarn_bits);
+//    };
   } else if (screenNumber==2){
     //Servos values
     u8g.setFont(u8g_font_courR10);
@@ -276,19 +276,19 @@ void drawScreen(int screenNumber){
     u8g.drawStr(96, 54, String(rec.channels[15].pwmvalue).c_str());
   } else if (screenNumber==4){
     //Light canal history
-    u8g.setFont(u8g_font_courR10);
-    u8g.drawStr(0, 12, String(rec.channels[12].ligthHistory[0].state).c_str());
-    u8g.drawStr(0, 26, String(rec.channels[12].ligthHistory[0].timing).c_str());
-    u8g.drawStr(0, 40, String(rec.channels[12].ligthHistory[1].state).c_str());
-    u8g.drawStr(0, 54, String(rec.channels[12].ligthHistory[1].timing).c_str());
-    u8g.drawStr(40, 12, String(rec.channels[12].ligthHistory[2].state).c_str());
-    u8g.drawStr(40, 26, String(rec.channels[12].ligthHistory[2].timing).c_str());
-    u8g.drawStr(40, 40, String(rec.channels[12].ligthHistory[3].state).c_str());
-    u8g.drawStr(40, 54, String(rec.channels[12].ligthHistory[3].timing).c_str());
-    u8g.drawStr(80, 12, String(rec.channels[12].ligthHistory[4].state).c_str());
-    u8g.drawStr(80, 26, String(rec.channels[12].ligthHistory[4].timing).c_str());
-    u8g.drawStr(80, 40, String(rec.channels[12].ligthHistory[5].state).c_str());
-    u8g.drawStr(80, 54, String(rec.channels[12].ligthHistory[5].timing).c_str());
+//    u8g.setFont(u8g_font_courR10);
+//    u8g.drawStr(0, 12, String(rec.channels[12].ligthHistory[0]->state).c_str());
+//    u8g.drawStr(0, 26, String(rec.channels[12].ligthHistory[0]->timing).c_str());
+//    u8g.drawStr(0, 40, String(rec.channels[12].ligthHistory[1]->state).c_str());
+//    u8g.drawStr(0, 54, String(rec.channels[12].ligthHistory[1]->timing).c_str());
+//    u8g.drawStr(40, 12, String(rec.channels[12].ligthHistory[2]->state).c_str());
+//    u8g.drawStr(40, 26, String(rec.channels[12].ligthHistory[2]->timing).c_str());
+//    u8g.drawStr(40, 40, String(rec.channels[12].ligthHistory[3]->state).c_str());
+//    u8g.drawStr(40, 54, String(rec.channels[12].ligthHistory[3]->timing).c_str());
+//    u8g.drawStr(80, 12, String(rec.channels[12].ligthHistory[4]->state).c_str());
+//    u8g.drawStr(80, 26, String(rec.channels[12].ligthHistory[4]->timing).c_str());
+//    u8g.drawStr(80, 40, String(rec.channels[12].ligthHistory[5]->state).c_str());
+//    u8g.drawStr(80, 54, String(rec.channels[12].ligthHistory[5]->timing).c_str());
   };
 }
 

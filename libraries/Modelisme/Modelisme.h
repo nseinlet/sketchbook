@@ -21,6 +21,8 @@
 #define AngleMin 5
 #define AngleMax 175
 
+#define MAXHISTORY 4
+
 #include "Arduino.h"
 #include <FUTABA_SBUS.h>
 
@@ -31,23 +33,32 @@ class ReceiverCanalHistory {
     ReceiverCanalHistory();
 };
 
+class ReceiverCanalAngleHistory {
+  public:
+    int angle;
+    unsigned long timing;
+    ReceiverCanalAngleHistory();
+};
+
 class ReceiverCanal {
   public:
     unsigned long when;
     int pwmvalue;
     int angle;
     bool manageHistory;
-    ReceiverCanalHistory ligthHistory[6];
+    bool manageAngleHistory;
+    ReceiverCanalHistory **ligthHistory;
+    ReceiverCanalAngleHistory *angleHistory[MAXHISTORY];
 
     ReceiverCanal();
     int pwmToDeg();
     int canalToHighLow();
     void manageTheHistory();
+    void manageTheAngleHistory();
     void resetHistory();
     unsigned long getMaxHistoryTime();
     int getMaxHistoryLength();
     int getHistoryState();
-
 };
 
 class Receiver {
@@ -84,6 +95,7 @@ class LightManager {
     ReceiverCanal* steeringCanal;
     unsigned long blinktime;
 
+    void _setup();
     void _blinking();
 };
 
