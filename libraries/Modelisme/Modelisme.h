@@ -81,6 +81,8 @@ class ChannelHistory {
     ChannelHistoryLine history[MAX_LM_HISTORY];
 
     void manageTheHistory(int);
+    int getMinAngle();
+    int getMaxAngle();
 };
 
 class LightManager {
@@ -106,7 +108,7 @@ class LightManager {
     LightManager(ReceiverCanal*, ReceiverCanal*);
     LightManager(ReceiverCanal*, ReceiverCanal*, ReceiverCanal*);
     void checkLights();
-      
+
   private:
     void _setup();
     void _blinking();

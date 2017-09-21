@@ -120,6 +120,23 @@ void LightManager::checkLights() {
     };
     lightHistory.resetHistory();
   };
+
+  //Check steerHistory for stoping warnings
+  if (steeringCanal) {
+    if (rWarn){
+      if (steerHistory.history[0].angle>85 && steerHistory.getMinAngle()<85){
+        rWarn = false;
+      };
+    };
+    if (lWarn){
+      if (steerHistory.history[0].angle<95 && steerHistory.getMaxAngle()>95){
+        lWarn = false;
+      };
+    };
+  }
+  //Check throttleCanal history for braking
+  
+
   _blinking();
 };
 
@@ -222,8 +239,28 @@ void ChannelHistory::manageTheHistory(int angle) {
    history[0].timing = millis();
 }
 
+int ChannelHistory::getMinAngle(){
+    int res = history[0].angle;
+    for (int i=1;i<MAX_LM_HISTORY;i++){
+        if (history[i].angle<res){
+          res = history[i].angle;
+        };
+    };
+    return res;
+};
+
+int ChannelHistory::getMaxAngle(){
+    int res = history[0].angle;
+    for (int i=1;i<MAX_LM_HISTORY;i++){
+        if (history[i].angle>res){
+          res = history[i].angle;
+        };
+    };
+    return res;
+};
+
 ChannelHistoryLine::ChannelHistoryLine()
 {
   angle=0;
   timing=0;
-}
+};
