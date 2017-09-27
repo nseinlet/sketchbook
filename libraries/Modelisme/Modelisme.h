@@ -96,6 +96,13 @@ class LightManager {
     bool warnings;
     bool turningWarn;
     bool blinkstate;
+    int rwPIN;
+    int lwPIN;
+    int bPIN;
+    int rPIN;
+    int lPIN;
+    int hlPIN;
+    int twPIN;
     ReceiverCanal* canal;
     ReceiverCanal* steeringCanal;
     ReceiverCanal* throttleCanal;
@@ -107,11 +114,12 @@ class LightManager {
     LightManager(ReceiverCanal*);
     LightManager(ReceiverCanal*, ReceiverCanal*);
     LightManager(ReceiverCanal*, ReceiverCanal*, ReceiverCanal*);
+    void setup(int, int, int, int, int, int, int);
     void checkLights();
-
-  private:
+    void powerLights();
     void _setup();
     void _blinking();
+
 };
 
 #endif

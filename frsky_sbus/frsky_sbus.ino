@@ -172,26 +172,27 @@ int displayCounter=0;
 
 void setup(){
   rec.setup();
-  myservo[0].attach(7);
-  myservo[1].attach(8);
-  myservo[2].attach(9);
-  myservo[3].attach(10);
-  myservo[4].attach(11);
-  myservo[5].attach(12);
+  lm.setup(2, 3, 4, 5, 6, 7, 13);
+  //myservo[0].attach(8);
+  //myservo[1].attach(9);
+  //myservo[2].attach(10);
+  //myservo[3].attach(11);
+  //myservo[4].attach(12);
 }
 
 void loop(){
   delay(75);
   if (rec.read()==1){
-    myservo[0].write(rec.channels[0].angle);  
-    myservo[1].write(rec.channels[0].angle);
-    myservo[2].write(rec.channels[2].angle);
-    myservo[3].write(rec.channels[12].angle);
+    //myservo[0].write(rec.channels[4].angle);  
+    //myservo[1].write(rec.channels[5].angle);
+    //myservo[2].write(rec.channels[6].angle);
+    //myservo[3].write(rec.channels[7].angle);
+    //myservo[3].write(rec.channels[8].angle);
   };
   
   //Manage ligths
   lm.checkLights();
-  
+
   //Display
   displayCounter++;
   if (displayCounter>4){
@@ -287,6 +288,10 @@ void drawScreen(int screenNumber){
     u8g.drawStr(40, 54, String(lm.lightHistory.history[3].timing).c_str());
     u8g.drawStr(80, 12, String(lm.lightHistory.history[4].state).c_str());
     u8g.drawStr(80, 26, String(lm.lightHistory.history[4].timing).c_str());
+
+    u8g.drawStr(80, 40, String(lm.lwPIN).c_str());
+    u8g.drawStr(80, 54, String(lm.rwPIN).c_str());
+    
   } else if (screenNumber==5){
     //Light canal history
     u8g.setFont(u8g_font_courR10);

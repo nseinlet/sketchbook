@@ -1,7 +1,6 @@
 /*
   Mpodelisme.cpp - Various usefull libs for PWM.
-  Created by David A. Mellis, November 2, 2007.
-  Released into the public domain.
+  See .h for license details
 */
 
 #include "Arduino.h"
@@ -63,17 +62,35 @@ LightManager::LightManager(ReceiverCanal* rcan, ReceiverCanal* tcan, ReceiverCan
   _setup();
 };
 
-void LightManager::_setup(){
-  blinktime = 0;
-  rWarn = false;
-  lWarn = false;
-  brake = false;
-  rear = false;
-  lights = false;
-  highlights = false;
-  warnings = false;
-  turningWarn = false;
-  blinkstate = false;
+void LightManager::setup(int rWarnPIN, int lWarnPIN, int brakePIN, int rearPIN, int lightsPIN, int highlightsPIN, int turningWarnPIN){
+  if (rWarnPIN>0){
+    rwPIN = rWarnPIN;
+    pinMode(rwPIN, OUTPUT);
+  };
+  if (lWarnPIN>0){
+    lwPIN = lWarnPIN;
+    pinMode(lwPIN, OUTPUT);
+  };
+  if (brakePIN>0){
+    bPIN = brakePIN;
+    pinMode(bPIN, OUTPUT);
+  };
+  if (rearPIN>0){
+    rPIN = rearPIN;
+    pinMode(rPIN, OUTPUT);
+  };
+  if (lightsPIN>0){
+    lPIN = lightsPIN;
+    pinMode(lPIN, OUTPUT);
+  };
+  if (highlightsPIN>0){
+    hlPIN = highlightsPIN;
+    pinMode(hlPIN, OUTPUT);
+  };
+  if (turningWarnPIN>0){
+    twPIN = turningWarnPIN;
+    pinMode(twPIN, OUTPUT);
+  };
 };
 
 void LightManager::checkLights() {
@@ -98,10 +115,10 @@ void LightManager::checkLights() {
     int pattern=lightHistory.getMaxHistoryLength();
     if (state!=0 && pattern>0){
       //Check the pattern
-      if (state==1 && pattern==1){
+      if (state==1 && pattern==1 && not warnings){
         rWarn=not rWarn;
         if (rWarn) lWarn=false;
-      } else if (state==-1 && pattern==1){
+      } else if (state==-1 && pattern==1 && not warnings){
         lWarn=not lWarn;
         if (lWarn) rWarn=false;
       } else if (state==1 && pattern==2){
@@ -111,9 +128,9 @@ void LightManager::checkLights() {
           lWarn=false;
         }
       } else if (state==-1 && pattern==2){
-        turningWarn=not turningWarn;
-      } else if (state==1 && pattern==3){
         lights=not lights;
+      } else if (state==1 && pattern==3){
+        turningWarn=not turningWarn;
       } else if (state==-1 && pattern==3){
         highlights=not highlights;
       };
@@ -135,9 +152,29 @@ void LightManager::checkLights() {
     };
   }
   //Check throttleCanal history for braking
-  
 
   _blinking();
+  powerLights();
+};
+
+void LightManager::_setup(){
+  blinktime = 0;
+  rWarn = false;
+  lWarn = false;
+  brake = false;
+  rear = false;
+  lights = false;
+  highlights = false;
+  warnings = false;
+  turningWarn = false;
+  blinkstate = false;
+  rwPIN = 0;
+  lwPIN = 0;
+  bPIN = 0;
+  rPIN = 0;
+  lPIN = 0;
+  hlPIN = 0;
+  twPIN = 0;
 };
 
 void LightManager::_blinking() {
@@ -151,6 +188,58 @@ void LightManager::_blinking() {
     blinktime = millis();
   };
 };
+
+void LightManager::powerLights(){
+  if (rwPIN>0){
+    if ((rWarn || warnings) && blinkstate){
+        digitalWrite(rwPIN, HIGH);
+    } else {
+        digitalWrite(rwPIN, LOW);
+    };
+  };
+  if (lwPIN>0){
+    if ((lWarn || warnings) && blinkstate){
+      digitalWrite(lwPIN, HIGH);
+    } else {
+      digitalWrite(lwPIN, LOW);
+    };
+  };
+  if (bPIN>0){
+    if (brake){
+      digitalWrite(bPIN, HIGH);
+    } else {
+      digitalWrite(bPIN, LOW);
+    };
+  };
+  if (rPIN>0){
+    if (rear){
+      digitalWrite(rPIN, HIGH);
+    } else {
+      digitalWrite(rPIN, LOW);
+    };
+  };
+  if (lPIN>0){
+    if (lights){
+      digitalWrite(lPIN, HIGH);
+    } else {
+      digitalWrite(lPIN, LOW);
+    };
+  };
+  if (hlPIN>0){
+    if (highlights){
+      digitalWrite(hlPIN, HIGH);
+    } else {
+      digitalWrite(hlPIN, LOW);
+    };
+  };
+  if (twPIN>0){
+    if (turningWarn){
+      digitalWrite(twPIN, HIGH);
+    } else {
+      digitalWrite(twPIN, LOW);
+    };
+  };
+}
 
 int LightManagerHistory::canalToHighLow(int angle) {
   //Check if a canal is high, low or neutral, to help managing history of ligth canal
