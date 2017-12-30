@@ -20,7 +20,7 @@ int Receiver::read()
     sBus.UpdateChannels();
     sBus.toChannels = 0;
 
-    for (int x; x<16; x++) {
+    for (int x=0; x<16; x++) {
       channels[x].when = millis();
       channels[x].pwmvalue = sBus.channels[x];
       channels[x].angle = channels[x].pwmToDeg();
@@ -41,24 +41,7 @@ int ReceiverCanal::pwmToDeg(){
   return map(pwmvalue, PWMMin, PWMMax, AngleMin, AngleMax);
 };
 
-LightManager::LightManager(ReceiverCanal* rcan){
-  canal = rcan;
-  throttleCanal = NULL;
-  steeringCanal = NULL;
-  _setup();
-};
-
-LightManager::LightManager(ReceiverCanal* rcan, ReceiverCanal* tcan){
-  canal = rcan;
-  throttleCanal = tcan;
-  steeringCanal = NULL;
-  _setup();
-};
-
-LightManager::LightManager(ReceiverCanal* rcan, ReceiverCanal* tcan, ReceiverCanal* scan){
-  canal = rcan;
-  throttleCanal = tcan;
-  steeringCanal = scan;
+LightManager::LightManager(){
   _setup();
 };
 
@@ -93,17 +76,15 @@ void LightManager::setup(int rWarnPIN, int lWarnPIN, int brakePIN, int rearPIN, 
   };
 };
 
-void LightManager::checkLights() {
-  lightHistory.manageTheHistory(canal->angle);
-  if (throttleCanal) {throttleHistory.manageTheHistory(throttleCanal->angle);};
-  if (steeringCanal) {steerHistory.manageTheHistory(steeringCanal->angle);};
+void LightManager::checkLights(int lightAngle, int throttleAngle, int steerAngle) {
+  lightHistory.manageTheHistory(lightAngle);
+  throttleHistory.manageTheHistory(throttleAngle);
+  steerHistory.manageTheHistory(steerAngle);
 
-  if (throttleCanal){
-    if (throttleCanal->angle < 80){
-      rear = true;
-    } else {
-      rear = false;
-    };
+  if (throttleAngle > 100){
+    rear = true;
+  } else {
+    rear = false;
   };
 
   //Check lightHistoryCanal for a pattern
@@ -139,7 +120,7 @@ void LightManager::checkLights() {
   };
 
   //Check steerHistory for stoping warnings
-  if (steeringCanal) {
+
     if (rWarn){
       if (steerHistory.history[0].angle>85 && steerHistory.getMinAngle()<85){
         rWarn = false;
@@ -150,8 +131,35 @@ void LightManager::checkLights() {
         lWarn = false;
       };
     };
-  }
+
   //Check throttleCanal history for braking
+    if (brake) {
+      //Check if we accelerate to turn off th light
+      if (throttleHistory.history[0].angle>98 && throttleHistory.isIncreasing()){
+        //Accelerate Forward
+        brake = false;
+      };
+      if (throttleHistory.history[0].angle<82 && throttleHistory.idDecreasing()){
+        //Accelerate Backward
+        brake = false;
+      };
+    } else {
+      //Check if we decelerate to ligths up the led
+      if (throttleHistory.history[0].angle>98 && throttleHistory.idDecreasing()){
+        //Decelerate Forward
+        brake = true;
+      };
+      if (throttleHistory.history[0].angle<82 && throttleHistory.isIncreasing()){
+        //Decelerate Backward
+        brake = true;
+      };
+    };
+    if (brake) {
+      if (throttleHistory.history[0].angle>87 && throttleHistory.history[0].angle<93 && throttleHistory.isAllEqual()){
+        //Doesn't move
+        brake = false;
+      }
+    }
 
   _blinking();
   powerLights();
@@ -260,7 +268,7 @@ void LightManagerHistory::manageTheHistory(int angle) {
    if (state!=history[0].state){
       //Do not store the middle values
       if (history[0].state!=0) {
-       for (int i=MAX_LM_HISTORY;i>0;i--){
+       for (int i=MAX_LM_HISTORY-1;i>0;i--){
          history[i].state=history[i-1].state;
          history[i].timing=history[i-1].timing;
        };
@@ -318,6 +326,10 @@ LightManagerHistoryLine::LightManagerHistoryLine()
   timing=0;
 }
 
+ChannelHistory::ChannelHistory() {
+    int i=1;
+};
+
 void ChannelHistory::manageTheHistory(int angle) {
    //Manage history of the canal
    for (int i=MAX_LM_HISTORY;i>0;i--){
@@ -346,6 +358,44 @@ int ChannelHistory::getMaxAngle(){
         };
     };
     return res;
+};
+
+bool ChannelHistory::isIncreasing(){
+    bool toReturn=true;
+    for (int i=1;i<MAX_LM_HISTORY;i++){
+      if (history[i-1].angle<history[i].angle){
+        toReturn=false;
+      };
+    };
+    if (toReturn && !isAllEqual()) {
+      return true;
+    }
+    return false;
+};
+
+bool ChannelHistory::idDecreasing(){
+    bool toReturn=true;
+
+    for (int i=1;i<MAX_LM_HISTORY;i++){
+      if (history[i-1].angle>history[i].angle){
+        toReturn=false;
+      };
+    };
+    if (toReturn && !isAllEqual()) {
+      return true;
+    }
+    return false;
+};
+
+bool ChannelHistory::isAllEqual(){
+  bool allequal=true;
+  //Ensure not everything is equal
+  for (int i=1;i<MAX_LM_HISTORY;i++){
+    if (history[i-1].angle!=history[i].angle){
+      allequal=false;
+    };
+  };
+  return allequal;
 };
 
 ChannelHistoryLine::ChannelHistoryLine()

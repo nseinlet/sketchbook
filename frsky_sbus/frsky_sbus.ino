@@ -160,7 +160,7 @@ static unsigned char lights_bits[] U8G_PROGMEM = {
    0x00, 0x00, 0x00, 0x1c };
    
 Receiver rec;
-LightManager lm(&(rec.channels[12]), &(rec.channels[1]), &(rec.channels[4]));
+LightManager lm;
 
 Servo myservo[6];
 
@@ -173,25 +173,25 @@ int displayCounter=0;
 void setup(){
   rec.setup();
   lm.setup(2, 3, 4, 5, 6, 7, 13);
-  //myservo[0].attach(8);
-  //myservo[1].attach(9);
-  //myservo[2].attach(10);
-  //myservo[3].attach(11);
-  //myservo[4].attach(12);
+  myservo[0].attach(8);
+  myservo[1].attach(9);
+  myservo[2].attach(10);
+  myservo[3].attach(11);
+  myservo[4].attach(12);
 }
 
 void loop(){
   delay(75);
   if (rec.read()==1){
-    //myservo[0].write(rec.channels[4].angle);  
-    //myservo[1].write(rec.channels[5].angle);
-    //myservo[2].write(rec.channels[6].angle);
-    //myservo[3].write(rec.channels[7].angle);
-    //myservo[3].write(rec.channels[8].angle);
+    myservo[0].write(rec.channels[4].angle);  
+    myservo[1].write(rec.channels[5].angle);
+    myservo[2].write(rec.channels[6].angle);
+    myservo[3].write(rec.channels[7].angle);
+    myservo[3].write(rec.channels[8].angle);
   };
   
   //Manage ligths
-  lm.checkLights();
+  lm.checkLights(rec.channels[3].angle, rec.channels[1].angle, rec.channels[4].angle);
 
   //Display
   displayCounter++;
@@ -217,12 +217,12 @@ void drawingScreenChooser(){
   } else {
     nbrdisp=5;
   }
-  
+  nbrdisp=1;
 }
 
 void drawScreen(int screenNumber){
   if (screenNumber==0){
-    u8g.drawXBMP( 4, 12, Logo_challenger_width, Logo_challenger_height, Logo_challenger_bits);
+    //u8g.drawXBMP( 4, 12, Logo_challenger_width, Logo_challenger_height, Logo_challenger_bits);
   } else if (screenNumber==1){
     u8g.drawXBMP( 6, 34, Logo_challenger_small_width, Logo_challenger_small_height, Logo_challenger_small_bits);
     if ((lm.lWarn || lm.warnings) && lm.blinkstate) {
@@ -254,8 +254,6 @@ void drawScreen(int screenNumber){
     u8g.drawStr(64, 54, String(rec.channels[11].angle).c_str());
     u8g.drawStr(96, 12, String(rec.channels[12].angle).c_str());
     u8g.drawStr(96, 26, String(rec.channels[13].angle).c_str());
-    u8g.drawStr(96, 40, String(rec.channels[14].angle).c_str());
-    u8g.drawStr(96, 54, String(rec.channels[15].angle).c_str());
   } else if (screenNumber==3){
     //PWM values
     u8g.setFont(u8g_font_courR10);
@@ -275,39 +273,54 @@ void drawScreen(int screenNumber){
     u8g.drawStr(96, 26, String(rec.channels[13].pwmvalue).c_str());
     u8g.drawStr(96, 40, String(rec.channels[14].pwmvalue).c_str());
     u8g.drawStr(96, 54, String(rec.channels[15].pwmvalue).c_str());
+//  } else if (screenNumber==4){
+//    //Light canal history
+//    u8g.setFont(u8g_font_courR10);
+//    u8g.drawStr(0, 12, String(lm.lightHistory.history[0].state).c_str());
+//    u8g.drawStr(0, 26, String(lm.lightHistory.history[0].timing).c_str());
+//    u8g.drawStr(0, 40, String(lm.lightHistory.history[1].state).c_str());
+//    u8g.drawStr(0, 54, String(lm.lightHistory.history[1].timing).c_str());
+//    u8g.drawStr(40, 12, String(lm.lightHistory.history[2].state).c_str());
+//    u8g.drawStr(40, 26, String(lm.lightHistory.history[2].timing).c_str());
+//    u8g.drawStr(40, 40, String(lm.lightHistory.history[3].state).c_str());
+//    u8g.drawStr(40, 54, String(lm.lightHistory.history[3].timing).c_str());
+//    u8g.drawStr(80, 12, String(lm.lightHistory.history[4].state).c_str());
+//    u8g.drawStr(80, 26, String(lm.lightHistory.history[4].timing).c_str());
+//
+//    u8g.drawStr(80, 40, String(lm.lwPIN).c_str());
+//    u8g.drawStr(80, 54, String(lm.rwPIN).c_str());
   } else if (screenNumber==4){
     //Light canal history
     u8g.setFont(u8g_font_courR10);
-    u8g.drawStr(0, 12, String(lm.lightHistory.history[0].state).c_str());
-    u8g.drawStr(0, 26, String(lm.lightHistory.history[0].timing).c_str());
-    u8g.drawStr(0, 40, String(lm.lightHistory.history[1].state).c_str());
-    u8g.drawStr(0, 54, String(lm.lightHistory.history[1].timing).c_str());
-    u8g.drawStr(40, 12, String(lm.lightHistory.history[2].state).c_str());
-    u8g.drawStr(40, 26, String(lm.lightHistory.history[2].timing).c_str());
-    u8g.drawStr(40, 40, String(lm.lightHistory.history[3].state).c_str());
-    u8g.drawStr(40, 54, String(lm.lightHistory.history[3].timing).c_str());
-    u8g.drawStr(80, 12, String(lm.lightHistory.history[4].state).c_str());
-    u8g.drawStr(80, 26, String(lm.lightHistory.history[4].timing).c_str());
+    u8g.drawStr(0, 12, String(lm.throttleHistory.history[0].angle).c_str());
+    u8g.drawStr(0, 26, String(lm.throttleHistory.history[0].timing).c_str());
+    u8g.drawStr(0, 40, String(lm.throttleHistory.history[1].angle).c_str());
+    u8g.drawStr(0, 54, String(lm.throttleHistory.history[1].timing).c_str());
+    u8g.drawStr(40, 12, String(lm.throttleHistory.history[2].angle).c_str());
+    u8g.drawStr(40, 26, String(lm.throttleHistory.history[2].timing).c_str());
+    u8g.drawStr(40, 40, String(lm.throttleHistory.history[3].angle).c_str());
+    u8g.drawStr(40, 54, String(lm.throttleHistory.history[3].timing).c_str());
+    u8g.drawStr(80, 12, String(lm.throttleHistory.history[4].angle).c_str());
+    u8g.drawStr(80, 26, String(lm.throttleHistory.history[4].timing).c_str());
 
-    u8g.drawStr(80, 40, String(lm.lwPIN).c_str());
-    u8g.drawStr(80, 54, String(lm.rwPIN).c_str());
-    
+    u8g.drawStr(80, 40, "Throttle");
+    u8g.drawStr(80, 54, String(lm.throttleHistory.idDecreasing()).c_str());  
   } else if (screenNumber==5){
     //Light canal history
     u8g.setFont(u8g_font_courR10);
-    u8g.drawStr(0, 12, String(lm.canal->pwmvalue).c_str());
-    u8g.drawStr(0, 26, String(lm.canal->angle).c_str());
-    u8g.drawStr(40, 12, String(lm.steeringCanal->pwmvalue).c_str());
-    u8g.drawStr(40, 26, String(lm.steeringCanal->angle).c_str());
-    u8g.drawStr(80, 12, String(lm.throttleCanal->pwmvalue).c_str());
-    u8g.drawStr(80, 26, String(lm.throttleCanal->angle).c_str());
+    u8g.drawStr(0, 12, String(lm.steerHistory.history[0].angle).c_str());
+    u8g.drawStr(0, 26, String(lm.steerHistory.history[0].timing).c_str());
+    u8g.drawStr(0, 40, String(lm.steerHistory.history[1].angle).c_str());
+    u8g.drawStr(0, 54, String(lm.steerHistory.history[1].timing).c_str());
+    u8g.drawStr(40, 12, String(lm.steerHistory.history[2].angle).c_str());
+    u8g.drawStr(40, 26, String(lm.steerHistory.history[2].timing).c_str());
+    u8g.drawStr(40, 40, String(lm.steerHistory.history[3].angle).c_str());
+    u8g.drawStr(40, 54, String(lm.steerHistory.history[3].timing).c_str());
+    u8g.drawStr(80, 12, String(lm.steerHistory.history[4].angle).c_str());
+    u8g.drawStr(80, 26, String(lm.steerHistory.history[4].timing).c_str());
 
-    u8g.drawStr(0, 40, String(lm.rWarn).c_str());
-    u8g.drawStr(0, 54, String(lm.lWarn).c_str());
-    u8g.drawStr(40, 40, String(lm.brake).c_str());
-    u8g.drawStr(40, 54, String(lm.rear).c_str());
-    u8g.drawStr(80, 40, String(lm.lights).c_str());
-    u8g.drawStr(80, 54, String(lm.warnings).c_str());
+    u8g.drawStr(80, 40, "Steer");
+    u8g.drawStr(80, 54, String(lm.steerHistory.idDecreasing()).c_str());
   };
 }
 

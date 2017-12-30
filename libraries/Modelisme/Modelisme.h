@@ -78,11 +78,15 @@ class ChannelHistoryLine {
 
 class ChannelHistory {
   public:
-    ChannelHistoryLine history[MAX_LM_HISTORY];
+    ChannelHistoryLine history[12];
 
+    ChannelHistory();
     void manageTheHistory(int);
     int getMinAngle();
     int getMaxAngle();
+    bool isIncreasing();
+    bool idDecreasing();
+    bool isAllEqual();
 };
 
 class LightManager {
@@ -103,19 +107,14 @@ class LightManager {
     int lPIN;
     int hlPIN;
     int twPIN;
-    ReceiverCanal* canal;
-    ReceiverCanal* steeringCanal;
-    ReceiverCanal* throttleCanal;
     unsigned long blinktime;
     LightManagerHistory lightHistory;
     ChannelHistory steerHistory;
     ChannelHistory throttleHistory;
 
-    LightManager(ReceiverCanal*);
-    LightManager(ReceiverCanal*, ReceiverCanal*);
-    LightManager(ReceiverCanal*, ReceiverCanal*, ReceiverCanal*);
+    LightManager();
     void setup(int, int, int, int, int, int, int);
-    void checkLights();
+    void checkLights(int, int, int);
     void powerLights();
     void _setup();
     void _blinking();
