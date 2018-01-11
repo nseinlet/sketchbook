@@ -99,6 +99,7 @@ class LightManager {
     bool highlights;
     bool warnings;
     bool turningWarn;
+    bool lightWarn;
     bool blinkstate;
     int rwPIN;
     int lwPIN;
@@ -108,6 +109,7 @@ class LightManager {
     int hlPIN;
     int twPIN;
     unsigned long blinktime;
+    unsigned long lightWarnTime;
     LightManagerHistory lightHistory;
     ChannelHistory steerHistory;
     ChannelHistory throttleHistory;

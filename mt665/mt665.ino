@@ -168,6 +168,7 @@ int currentTime;
 int displayTime;
 int nbrdisp=0;
 int displayCounter=0;
+int disp_occur;
 
 void setup(){
   rec.setup();
@@ -184,10 +185,13 @@ void setup(){
   //Sound unit
   myservo[8].attach(A6);
   myservo[9].attach(A7);
+  
+  //Screen management
+  disp_occur=0;
 }
 
 void loop(){
-  delay(75);
+  delay(50);
   if (rec.read()==1){
     myservo[0].write(rec.channels[8].angle);
     myservo[1].write(rec.channels[9].angle);
@@ -216,28 +220,118 @@ void drawingScreenChooser(){
   if (millis()<10000){
     nbrdisp=0;
   } else {
-    nbrdisp=1;
+      disp_occur = disp_occur + 1;
+      if (disp_occur>10) {
+        disp_occur=0;
+        nbrdisp++;
+        if (nbrdisp>6){
+            nbrdisp=1;
+        };
+      };
   }
 }
 
 void drawScreen(int screenNumber){
-  if (screenNumber==0){
-    u8g.drawXBMP( 4, 12, Logo_challenger_width, Logo_challenger_height, Logo_challenger_bits);
-  } else if (screenNumber==1){
-    u8g.drawXBMP( 6, 34, Logo_challenger_small_width, Logo_challenger_small_height, Logo_challenger_small_bits);
-    if ((lm.lWarn || lm.warnings) && lm.blinkstate) {
-      u8g.drawXBMP( 1, 1, lwarn_width, lwarn_height, lwarn_bits);
+    if (screenNumber==0){
+      u8g.drawXBMP( 4, 12, Logo_challenger_width, Logo_challenger_height, Logo_challenger_bits);
+    } else if (screenNumber==1){
+      u8g.drawXBMP( 6, 34, Logo_challenger_small_width, Logo_challenger_small_height, Logo_challenger_small_bits);
+      if ((lm.lWarn || lm.warnings) && lm.blinkstate) {
+        u8g.drawXBMP( 1, 1, lwarn_width, lwarn_height, lwarn_bits);
+      };
+      if (lm.brake) {
+        u8g.drawXBMP( 31, 1, brake_width, brake_height, brake_bits);
+      };
+      if (lm.lights || lm.highlights || lm.lightWarn) {
+        u8g.drawXBMP( 63, 1, lights_width, lights_height, lights_bits);
+      };
+      if ((lm.rWarn || lm.warnings) && lm.blinkstate) {
+        u8g.drawXBMP( 102, 1, rwarn_width, rwarn_height, rwarn_bits);
+      };
+    } else if (screenNumber==2){
+      //Servos values
+      u8g.setFont(u8g_font_courR10);
+      u8g.drawStr(0, 12, String(rec.channels[0].angle).c_str());
+      u8g.drawStr(0, 26, String(rec.channels[1].angle).c_str());
+      u8g.drawStr(0, 40, String(rec.channels[2].angle).c_str());
+      u8g.drawStr(0, 54, String(rec.channels[3].angle).c_str());
+      u8g.drawStr(32, 12, String(rec.channels[4].angle).c_str());
+      u8g.drawStr(32, 26, String(rec.channels[5].angle).c_str());
+      u8g.drawStr(32, 40, String(rec.channels[6].angle).c_str());
+      u8g.drawStr(32, 54, String(rec.channels[7].angle).c_str());
+      u8g.drawStr(64, 12, String(rec.channels[8].angle).c_str());
+      u8g.drawStr(64, 26, String(rec.channels[9].angle).c_str());
+      u8g.drawStr(64, 40, String(rec.channels[10].angle).c_str());
+      u8g.drawStr(64, 54, String(rec.channels[11].angle).c_str());
+      u8g.drawStr(96, 12, String(rec.channels[12].angle).c_str());
+      u8g.drawStr(96, 26, String(rec.channels[13].angle).c_str());
+      u8g.drawStr(96, 40, String(rec.channels[14].angle).c_str());
+      u8g.drawStr(96, 54, String(rec.channels[15].angle).c_str());
+    } else if (screenNumber==3){
+      //PWM values
+      u8g.setFont(u8g_font_courR10);
+      u8g.drawStr(0, 12, String(rec.channels[0].pwmvalue).c_str());
+      u8g.drawStr(0, 26, String(rec.channels[1].pwmvalue).c_str());
+      u8g.drawStr(0, 40, String(rec.channels[2].pwmvalue).c_str());
+      u8g.drawStr(0, 54, String(rec.channels[3].pwmvalue).c_str());
+      u8g.drawStr(32, 12, String(rec.channels[4].pwmvalue).c_str());
+      u8g.drawStr(32, 26, String(rec.channels[5].pwmvalue).c_str());
+      u8g.drawStr(32, 40, String(rec.channels[6].pwmvalue).c_str());
+      u8g.drawStr(32, 54, String(rec.channels[7].pwmvalue).c_str());
+      u8g.drawStr(64, 12, String(rec.channels[8].pwmvalue).c_str());
+      u8g.drawStr(64, 26, String(rec.channels[9].pwmvalue).c_str());
+      u8g.drawStr(64, 40, String(rec.channels[10].pwmvalue).c_str());
+      u8g.drawStr(64, 54, String(rec.channels[11].pwmvalue).c_str());
+      u8g.drawStr(96, 12, String(rec.channels[12].pwmvalue).c_str());
+      u8g.drawStr(96, 26, String(rec.channels[13].pwmvalue).c_str());
+      u8g.drawStr(96, 40, String(rec.channels[14].pwmvalue).c_str());
+      u8g.drawStr(96, 54, String(rec.channels[15].pwmvalue).c_str());
+    } else if (screenNumber==4){
+       //Light canal history
+       u8g.setFont(u8g_font_courR10);
+       u8g.drawStr(0, 12, String(lm.lightHistory.history[0].state).c_str());
+       u8g.drawStr(0, 26, String(lm.lightHistory.history[0].timing).c_str());
+       u8g.drawStr(0, 40, String(lm.lightHistory.history[1].state).c_str());
+       u8g.drawStr(0, 54, String(lm.lightHistory.history[1].timing).c_str());
+       u8g.drawStr(40, 12, String(lm.lightHistory.history[2].state).c_str());
+       u8g.drawStr(40, 26, String(lm.lightHistory.history[2].timing).c_str());
+       u8g.drawStr(40, 40, String(lm.lightHistory.history[3].state).c_str());
+       u8g.drawStr(40, 54, String(lm.lightHistory.history[3].timing).c_str());
+       u8g.drawStr(80, 12, String(lm.lightHistory.history[4].state).c_str());
+       u8g.drawStr(80, 26, String(lm.lightHistory.history[4].timing).c_str());
+    } else if (screenNumber==5){
+      //Light canal history
+      u8g.setFont(u8g_font_courR10);
+      u8g.drawStr(0, 12, String(lm.throttleHistory.history[0].angle).c_str());
+      u8g.drawStr(0, 26, String(lm.throttleHistory.history[0].timing).c_str());
+      u8g.drawStr(0, 40, String(lm.throttleHistory.history[1].angle).c_str());
+      u8g.drawStr(0, 54, String(lm.throttleHistory.history[1].timing).c_str());
+      u8g.drawStr(40, 12, String(lm.throttleHistory.history[2].angle).c_str());
+      u8g.drawStr(40, 26, String(lm.throttleHistory.history[2].timing).c_str());
+      u8g.drawStr(40, 40, String(lm.throttleHistory.history[3].angle).c_str());
+      u8g.drawStr(40, 54, String(lm.throttleHistory.history[3].timing).c_str());
+      u8g.drawStr(80, 12, String(lm.throttleHistory.history[4].angle).c_str());
+      u8g.drawStr(80, 26, String(lm.throttleHistory.history[4].timing).c_str());
+
+      u8g.drawStr(80, 40, "Throttle");
+      u8g.drawStr(80, 54, String(lm.throttleHistory.idDecreasing()).c_str());  
+    } else if (screenNumber==6){
+      //Light canal history
+      u8g.setFont(u8g_font_courR10);
+      u8g.drawStr(0, 12, String(lm.steerHistory.history[0].angle).c_str());
+      u8g.drawStr(0, 26, String(lm.steerHistory.history[0].timing).c_str());
+      u8g.drawStr(0, 40, String(lm.steerHistory.history[1].angle).c_str());
+      u8g.drawStr(0, 54, String(lm.steerHistory.history[1].timing).c_str());
+      u8g.drawStr(40, 12, String(lm.steerHistory.history[2].angle).c_str());
+      u8g.drawStr(40, 26, String(lm.steerHistory.history[2].timing).c_str());
+      u8g.drawStr(40, 40, String(lm.steerHistory.history[3].angle).c_str());
+      u8g.drawStr(40, 54, String(lm.steerHistory.history[3].timing).c_str());
+      u8g.drawStr(80, 12, String(lm.steerHistory.history[4].angle).c_str());
+      u8g.drawStr(80, 26, String(lm.steerHistory.history[4].timing).c_str());
+
+      u8g.drawStr(80, 40, "Steer");
+      u8g.drawStr(80, 54, String(lm.steerHistory.idDecreasing()).c_str());
     };
-    if (lm.brake) {
-      u8g.drawXBMP( 31, 1, brake_width, brake_height, brake_bits);
-    };
-    if (lm.lights) {
-      u8g.drawXBMP( 63, 1, lights_width, lights_height, lights_bits);
-    };
-    if ((lm.rWarn || lm.warnings) && lm.blinkstate) {
-      u8g.drawXBMP( 102, 1, rwarn_width, rwarn_height, rwarn_bits);
-    };
-  };
 }
 
 void draw() {

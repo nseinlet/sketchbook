@@ -109,10 +109,13 @@ void LightManager::checkLights(int lightAngle, int throttleAngle, int steerAngle
           lWarn=false;
         }
       } else if (state==-1 && pattern==2){
-        lights=not lights;
+        lightWarn = True;
+        lightWarnTime = millis()+1000;
       } else if (state==1 && pattern==3){
         turningWarn=not turningWarn;
       } else if (state==-1 && pattern==3){
+        lights=not lights;
+      } else if (state==-1 && pattern==4){
         highlights=not highlights;
       };
     };
@@ -120,7 +123,6 @@ void LightManager::checkLights(int lightAngle, int throttleAngle, int steerAngle
   };
 
   //Check steerHistory for stoping warnings
-
     if (rWarn){
       if (steerHistory.history[0].angle>85 && steerHistory.getMinAngle()<85){
         rWarn = false;
@@ -161,6 +163,10 @@ void LightManager::checkLights(int lightAngle, int throttleAngle, int steerAngle
       }
     }
 
+   //Check time for light Warning;
+   if (lightWarn && actualTime>lightWarnTime) {
+       lightWarn = false;
+   }
   _blinking();
   powerLights();
 };
@@ -175,6 +181,7 @@ void LightManager::_setup(){
   highlights = false;
   warnings = false;
   turningWarn = false;
+  lightWarn = false;
   blinkstate = false;
   rwPIN = 0;
   lwPIN = 0;
@@ -183,6 +190,7 @@ void LightManager::_setup(){
   lPIN = 0;
   hlPIN = 0;
   twPIN = 0;
+  lightWarnTime = 0;
 };
 
 void LightManager::_blinking() {
@@ -227,14 +235,14 @@ void LightManager::powerLights(){
     };
   };
   if (lPIN>0){
-    if (lights){
+    if (lights || lightWarn){
       digitalWrite(lPIN, HIGH);
     } else {
       digitalWrite(lPIN, LOW);
     };
   };
   if (hlPIN>0){
-    if (highlights){
+    if (highlights || lightWarn){
       digitalWrite(hlPIN, HIGH);
     } else {
       digitalWrite(hlPIN, LOW);
@@ -251,7 +259,9 @@ void LightManager::powerLights(){
 
 int LightManagerHistory::canalToHighLow(int angle) {
   //Check if a canal is high, low or neutral, to help managing history of ligth canal
-  if (angle>115){
+  if (angle<=0 || angle>=180){
+    return 0;  
+  } else if (angle>115){
     return 1;
   } else if (angle<75){
     return -1;
