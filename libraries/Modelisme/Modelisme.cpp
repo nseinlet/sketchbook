@@ -109,7 +109,7 @@ void LightManager::checkLights(int lightAngle, int throttleAngle, int steerAngle
           lWarn=false;
         }
       } else if (state==-1 && pattern==2){
-        lightWarn = True;
+        lightWarn = true;
         lightWarnTime = millis()+1000;
       } else if (state==1 && pattern==3){
         turningWarn=not turningWarn;
@@ -260,7 +260,7 @@ void LightManager::powerLights(){
 int LightManagerHistory::canalToHighLow(int angle) {
   //Check if a canal is high, low or neutral, to help managing history of ligth canal
   if (angle<=0 || angle>=180){
-    return 0;  
+    return 0;
   } else if (angle>115){
     return 1;
   } else if (angle<75){

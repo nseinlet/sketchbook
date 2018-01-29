@@ -178,14 +178,13 @@ void setup(){
   myservo[1].attach(10);
   myservo[2].attach(11);
   myservo[3].attach(12);
-  myservo[4].attach(A0);
+  myservo[4].attach(13);
   myservo[5].attach(A1);
   myservo[6].attach(A2);
-  //myservo[7].attach(A3);
   //Sound unit
-  myservo[8].attach(A6);
-  myservo[9].attach(A7);
-  
+  myservo[7].attach(A6);
+  myservo[8].attach(A7);
+
   //Screen management
   disp_occur=0;
 }
@@ -200,13 +199,12 @@ void loop(){
     myservo[4].write(rec.channels[12].angle);
     myservo[5].write(rec.channels[13].angle);
     myservo[6].write(rec.channels[14].angle);
-    //myservo[7].write(rec.channels[15].angle);
-    myservo[8].write(rec.channels[1].angle);
-    myservo[9].write(rec.channels[15].angle);
+    myservo[7].write(rec.channels[1].angle);
+    myservo[8].write(rec.channels[15].angle);
   };
 
   //Manage ligths
-  lm.checkLights(rec.channels[2].angle, rec.channels[4].angle, rec.channels[3].angle);
+  lm.checkLights(rec.channels[11].angle, rec.channels[2].angle, rec.channels[4].angle);
 
   //Display
   displayCounter++;
@@ -220,14 +218,7 @@ void drawingScreenChooser(){
   if (millis()<10000){
     nbrdisp=0;
   } else {
-      disp_occur = disp_occur + 1;
-      if (disp_occur>10) {
-        disp_occur=0;
-        nbrdisp++;
-        if (nbrdisp>6){
-            nbrdisp=1;
-        };
-      };
+    nbrdisp=1;
   }
 }
 
@@ -314,7 +305,7 @@ void drawScreen(int screenNumber){
       u8g.drawStr(80, 26, String(lm.throttleHistory.history[4].timing).c_str());
 
       u8g.drawStr(80, 40, "Throttle");
-      u8g.drawStr(80, 54, String(lm.throttleHistory.idDecreasing()).c_str());  
+      u8g.drawStr(80, 54, String(lm.throttleHistory.idDecreasing()).c_str());
     } else if (screenNumber==6){
       //Light canal history
       u8g.setFont(u8g_font_courR10);
