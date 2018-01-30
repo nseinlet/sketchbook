@@ -123,14 +123,14 @@ void LightManager::checkLights(int lightAngle, int throttleAngle, int steerAngle
   };
 
   //Check steerHistory for stoping warnings
-    if (rWarn){
+    if (lWarn){
       if (steerHistory.history[0].angle>85 && steerHistory.getMinAngle()<85){
-        rWarn = false;
+        lWarn = false;
       };
     };
-    if (lWarn){
+    if (rWarn){
       if (steerHistory.history[0].angle<95 && steerHistory.getMaxAngle()>95){
-        lWarn = false;
+        rWarn = false;
       };
     };
 
