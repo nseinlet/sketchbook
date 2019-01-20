@@ -81,7 +81,7 @@ void LightManager::checkLights(int lightAngle, int throttleAngle, int steerAngle
   throttleHistory.manageTheHistory(throttleAngle);
   steerHistory.manageTheHistory(steerAngle);
 
-  if (throttleAngle > 100){
+  if (throttleAngle < 80){
     rear = true;
   } else {
     rear = false;
