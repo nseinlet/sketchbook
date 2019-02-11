@@ -1,12 +1,20 @@
 #include<Wire.h>
-#include <Servo.h>
-#include <PinChangeInt.h>
+#include<Servo.h>
+#include<PinChangeInt.h>
 
 #define PWMMin   900
 #define PWMMax   2100
 #define AngleMin 5
 #define AngleMax 175
+
+#define WHEEL_PIN 6
+#define MOTOR_PIN 7
+
 #define INPUT_PWM_SIZE 4
+#define INPUT_ANGLE_LEFT 9
+#define INPUT_ANGLE_RIGHT 10
+#define INPUT_POSITION 11
+#define INPUT_WHEEL_ANGLE 12
 
 const int MPU_addr=0x68;
 int16_t AcX,AcY,AcZ,Tmp,GyX,GyY,GyZ;
@@ -30,7 +38,7 @@ int currentzone;
 const int motorright=45;
 const int motorleft=135;
 
-const int PWM_PIN[INPUT_PWM_SIZE]={9,10,11,12};
+const int PWM_PIN[INPUT_PWM_SIZE]={INPUT_ANGLE_LEFT,INPUT_ANGLE_RIGHT,INPUT_POSITION,INPUT_WHEEL_ANGLE};
 const int bPinMap[14] = {0,0,0,0,0,0,0,0,0,0,1,2,3,0};
 volatile unsigned long pwm_value[INPUT_PWM_SIZE];
 volatile unsigned long pwm_time[INPUT_PWM_SIZE];
@@ -39,8 +47,8 @@ int last_pwm_pin_read;
 Servo wheelservo;
 Servo motorservo;
 
-int pwmToAngle(int pwmvalue){
-  return map(pwmvalue, PWMMin, PWMMax, AngleMin, AngleMax);
+int pwmToAngle(int pwmvalue, int angleMin, int angleMax){
+  return map(pwmvalue, PWMMin, PWMMax, angleMin, angleMax);
 };
 
 void rising()
@@ -57,22 +65,21 @@ void falling() {
 }
 
 void read_inputs(){
-  //Read inputs, one per loop, as it takes 10ms to read an input
   //0 : required angle left
   //1 : required angle right
   //2 : required position
   //3 : Wheel position
 
-  if (pwmToAngle(pwm_value[2])>110){
-    requiredangle=pwmToAngle(pwm_value[0]);
+  if (pwmToAngle(pwm_value[2], AngleMin, AngleMax)>110){
+    requiredangle=pwmToAngle(pwm_value[0], AngleMin, AngleMax);
   } else {
-    if (pwmToAngle(pwm_value[2])<70){
-      requiredangle=pwmToAngle(pwm_value[1])+180;
+    if (pwmToAngle(pwm_value[2], AngleMin, AngleMax)<70){
+      requiredangle=pwmToAngle(pwm_value[1], AngleMin, AngleMax)+180;
     } else {
       requiredangle=180;
     };  
   };
-  levelwheelsetting=pwmToAngle(pwm_value[3])/2;
+  levelwheelsetting=pwmToAngle(pwm_value[3], AngleMin, AngleMax)/2;
 }
 
 int get_zone(double angle) {
@@ -96,8 +103,8 @@ void setup(){
   Wire.write(0); 
   Wire.endTransmission(true); 
   Serial.begin(9600); 
-  wheelservo.attach(6);
-  motorservo.attach(7);
+  wheelservo.attach(WHEEL_PIN);
+  motorservo.attach(MOTOR_PIN);
   levelwheelsetting=65;
   requiredangle=270;
   requiredzone=3;
@@ -201,5 +208,4 @@ void loop(){
   wheelservo.write(levelwheelangle);
   motorservo.write(motor_control);
   
-//  delay(400); 
 }
