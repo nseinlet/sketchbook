@@ -1,6 +1,6 @@
-#include<Wire.h>
-#include<Servo.h>
-#include<PinChangeInt.h>
+#include <Wire.h>
+#include <Servo.h>
+#include <PinChangeInt.h>
 
 #define PWMMin   900
 #define PWMMax   2100
@@ -18,6 +18,7 @@
 
 const int MPU_addr=0x68;
 int16_t AcX,AcY,AcZ,Tmp,GyX,GyY,GyZ;
+int read_id;const int read_interval=3;
 
 int minVal=265;
 int maxVal=402;
@@ -25,9 +26,12 @@ int maxVal=402;
 double x; 
 double y; 
 double z;
-const double z_correction=-90;
+const double z_correction=90;
 double plough_angle;
 double motor_control;
+const int max_angle_adjust=50;
+int pos_left;
+int pos_right;
 
 double levelwheelsetting;
 double levelwheelangle;
@@ -35,8 +39,8 @@ double requiredangle;
 int requiredzone;
 int currentzone;
 
-const int motorright=45;
-const int motorleft=135;
+const int motorright=90-25;
+const int motorleft=90+30;
 
 const int PWM_PIN[INPUT_PWM_SIZE]={INPUT_ANGLE_LEFT,INPUT_ANGLE_RIGHT,INPUT_POSITION,INPUT_WHEEL_ANGLE};
 const int bPinMap[14] = {0,0,0,0,0,0,0,0,0,0,1,2,3,0};
@@ -70,16 +74,40 @@ void read_inputs(){
   //2 : required position
   //3 : Wheel position
 
+  pos_left=pwmToAngle(pwm_value[0], 90-(max_angle_adjust/2), 90+(max_angle_adjust/2));
+  pos_right=pwmToAngle(pwm_value[1], 270-(max_angle_adjust/2), 270+(max_angle_adjust/2));
   if (pwmToAngle(pwm_value[2], AngleMin, AngleMax)>110){
-    requiredangle=pwmToAngle(pwm_value[0], AngleMin, AngleMax);
+    requiredangle=pos_left;
   } else {
     if (pwmToAngle(pwm_value[2], AngleMin, AngleMax)<70){
-      requiredangle=pwmToAngle(pwm_value[1], AngleMin, AngleMax)+180;
+      requiredangle=pos_right;
     } else {
       requiredangle=180;
     };  
   };
-  levelwheelsetting=pwmToAngle(pwm_value[3], AngleMin, AngleMax)/2;
+  levelwheelsetting=pwmToAngle(pwm_value[3], AngleMin/2, AngleMax/2);
+}
+
+void read_gyro(){
+  read_id+=1;
+  if (read_id>read_interval){
+    read_id=0;
+    //Use I2c to read angles
+    Wire.beginTransmission(MPU_addr);
+    Wire.write(0x3B);
+    Wire.endTransmission(false);
+    Wire.requestFrom(MPU_addr,14,true);
+    AcX=Wire.read()<<8|Wire.read();
+    AcY=Wire.read()<<8|Wire.read();
+    AcZ=Wire.read()<<8|Wire.read();
+    int xAng = map(AcX,minVal,maxVal,-90,90);
+    int yAng = map(AcY,minVal,maxVal,-90,90);
+    int zAng = map(AcZ,minVal,maxVal,-90,90);
+
+    x= RAD_TO_DEG * (atan2(-yAng, -zAng)+PI);
+    y= RAD_TO_DEG * (atan2(-xAng, -zAng)+PI);
+    z= RAD_TO_DEG * (atan2(-yAng, -xAng)+PI);
+  }
 }
 
 int get_zone(double angle) {
@@ -102,7 +130,7 @@ void setup(){
   Wire.write(0x6B); 
   Wire.write(0); 
   Wire.endTransmission(true); 
-  Serial.begin(9600); 
+  //Serial.begin(115200);
   wheelservo.attach(WHEEL_PIN);
   motorservo.attach(MOTOR_PIN);
   levelwheelsetting=65;
@@ -114,26 +142,11 @@ void setup(){
     pinMode(PWM_PIN[last_pwm_pin_read], INPUT); digitalWrite(PWM_PIN[last_pwm_pin_read], HIGH);
     PCintPort::attachInterrupt(PWM_PIN[last_pwm_pin_read], &rising, RISING);
   };
-  
+  read_id=0;
 } 
 
 void loop(){ 
-  //Use I2c to read angles
-  Wire.beginTransmission(MPU_addr); 
-  Wire.write(0x3B); 
-  Wire.endTransmission(false); 
-  Wire.requestFrom(MPU_addr,14,true); 
-  AcX=Wire.read()<<8|Wire.read(); 
-  AcY=Wire.read()<<8|Wire.read(); 
-  AcZ=Wire.read()<<8|Wire.read(); 
-  int xAng = map(AcX,minVal,maxVal,-90,90); 
-  int yAng = map(AcY,minVal,maxVal,-90,90); 
-  int zAng = map(AcZ,minVal,maxVal,-90,90);
-
-  x= RAD_TO_DEG * (atan2(-yAng, -zAng)+PI); 
-  y= RAD_TO_DEG * (atan2(-xAng, -zAng)+PI); 
-  z= RAD_TO_DEG * (atan2(-yAng, -xAng)+PI);
-
+  read_gyro();
   //Convert z to usable angle
   plough_angle=360-z+z_correction;
   if (plough_angle>360) {
@@ -196,14 +209,18 @@ void loop(){
       };
     };
   };
-  
-    Serial.print(currentzone);
-    Serial.print(" | ");
-    Serial.print(plough_angle);
-    Serial.print(" | ");
-    Serial.print(levelwheelsetting);
-    Serial.print(" | ");
-    Serial.println(levelwheelangle);
+
+    //Serial.print(plough_angle);
+    //Serial.print(" | ");
+    //Serial.print(requiredangle);
+    //Serial.print(" | ");
+    //Serial.print(motor_control);
+    //Serial.print(" | ");
+    //Serial.print(currentzone);
+    //Serial.print(" | ");
+    //Serial.print(requiredzone);
+    //Serial.print(" | ");
+    //Serial.println(levelwheelangle);
   
   wheelservo.write(levelwheelangle);
   motorservo.write(motor_control);
