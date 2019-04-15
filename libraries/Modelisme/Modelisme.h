@@ -113,14 +113,18 @@ class LightManager {
     LightManagerHistory lightHistory;
     ChannelHistory steerHistory;
     ChannelHistory throttleHistory;
+    ChannelHistory throttleHistory2;
 
     LightManager();
     void setup(int, int, int, int, int, int, int);
+    void _checkLights(int, int, int);
     void checkLights(int, int, int);
+    void checkLights(int, int, int, int);
     void powerLights();
     void _setup();
     void _blinking();
-
+    void _breaking();
+    void _breaking_dual();
 };
 
 #endif

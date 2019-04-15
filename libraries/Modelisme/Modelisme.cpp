@@ -76,16 +76,15 @@ void LightManager::setup(int rWarnPIN, int lWarnPIN, int brakePIN, int rearPIN, 
   };
 };
 
-void LightManager::checkLights(int lightAngle, int throttleAngle, int steerAngle) {
+void LightManager::_checkLights(int lightAngle, int throttleAngle, int steerAngle) {
   lightHistory.manageTheHistory(lightAngle);
   throttleHistory.manageTheHistory(throttleAngle);
   steerHistory.manageTheHistory(steerAngle);
 
-  if (throttleAngle < 80){
+  if (throttleAngle < 80)
     rear = true;
-  } else {
+  if (throttleAngle > 95)
     rear = false;
-  };
 
   //Check lightHistoryCanal for a pattern
   //First, check if we reached the timing
@@ -134,40 +133,23 @@ void LightManager::checkLights(int lightAngle, int throttleAngle, int steerAngle
       };
     };
 
-  //Check throttleCanal history for braking
-    if (brake) {
-      //Check if we accelerate to turn off th light
-      if (throttleHistory.history[0].angle>98 && throttleHistory.isIncreasing()){
-        //Accelerate Forward
-        brake = false;
-      };
-      if (throttleHistory.history[0].angle<82 && throttleHistory.idDecreasing()){
-        //Accelerate Backward
-        brake = false;
-      };
-    } else {
-      //Check if we decelerate to ligths up the led
-      if (throttleHistory.history[0].angle>98 && throttleHistory.idDecreasing()){
-        //Decelerate Forward
-        brake = true;
-      };
-      if (throttleHistory.history[0].angle<82 && throttleHistory.isIncreasing()){
-        //Decelerate Backward
-        brake = true;
-      };
-    };
-    if (brake) {
-      if (throttleHistory.history[0].angle>87 && throttleHistory.history[0].angle<93 && throttleHistory.isAllEqual()){
-        //Doesn't move
-        brake = false;
-      }
-    }
-
    //Check time for light Warning;
    if (lightWarn && actualTime>lightWarnTime) {
        lightWarn = false;
    }
   _blinking();
+};
+
+void LightManager::checkLights(int lightAngle, int throttleAngle, int steerAngle) {
+  _checkLights(lightAngle, throttleAngle, steerAngle);
+  _breaking();
+  powerLights();
+};
+
+void LightManager::checkLights(int lightAngle, int throttleAngle, int steerAngle, int throttleAngle2) {
+  throttleHistory2.manageTheHistory(throttleAngle2);
+  _checkLights(lightAngle, throttleAngle, steerAngle);
+  _breaking_dual();
   powerLights();
 };
 
@@ -255,7 +237,67 @@ void LightManager::powerLights(){
       digitalWrite(twPIN, LOW);
     };
   };
-}
+};
+
+void LightManager::_breaking(){
+  if (brake) {
+    //Check if we accelerate to turn off th light
+    if (throttleHistory.history[0].angle>98 && throttleHistory.isIncreasing()){
+      //Accelerate Forward
+      brake = false;
+    };
+    if (throttleHistory.history[0].angle<82 && throttleHistory.idDecreasing()){
+      //Accelerate Backward
+      brake = false;
+    };
+  } else {
+    //Check if we decelerate to ligths up the led
+    if (throttleHistory.history[0].angle>98 && throttleHistory.idDecreasing()){
+      //Decelerate Forward
+      brake = true;
+    };
+    if (throttleHistory.history[0].angle<82 && throttleHistory.isIncreasing()){
+      //Decelerate Backward
+      brake = true;
+    };
+  };
+  if (brake) {
+    if (throttleHistory.history[0].angle>87 && throttleHistory.history[0].angle<93 && throttleHistory.isAllEqual()){
+      //Doesn't move
+      brake = false;
+    }
+  }
+};
+
+void LightManager::_breaking_dual(){
+  if (brake) {
+    //Check if we accelerate to turn off th light
+    if (throttleHistory.history[0].angle>98 && throttleHistory.isIncreasing() && throttleHistory2.isIncreasing()){
+      //Accelerate Forward
+      brake = false;
+    };
+    if (throttleHistory.history[0].angle<82 && throttleHistory.idDecreasing() && throttleHistory2.idDecreasing()){
+      //Accelerate Backward
+      brake = false;
+    };
+  } else {
+    //Check if we decelerate to ligths up the led
+    if (throttleHistory.history[0].angle>98 && throttleHistory.idDecreasing() && throttleHistory2.idDecreasing()){
+      //Decelerate Forward
+      brake = true;
+    };
+    if (throttleHistory.history[0].angle<82 && throttleHistory.isIncreasing() && throttleHistory2.isIncreasing()){
+      //Decelerate Backward
+      brake = true;
+    };
+  };
+  if (brake) {
+    if (throttleHistory.history[0].angle>87 && throttleHistory.history[0].angle<93 && throttleHistory.isAllEqual()){
+      //Doesn't move
+      brake = false;
+    }
+  }
+};
 
 int LightManagerHistory::canalToHighLow(int angle) {
   //Check if a canal is high, low or neutral, to help managing history of ligth canal

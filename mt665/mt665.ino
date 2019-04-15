@@ -189,7 +189,7 @@ void loop(){
   };
 
   //Manage ligths
-  lm.checkLights(rec.channels[11].angle, rec.channels[2].angle, rec.channels[4].angle);
+  lm.checkLights(rec.channels[11].angle, rec.channels[2].angle, rec.channels[4].angle, rec.channels[1].angle);
 
   //Display
   displayCounter++;
