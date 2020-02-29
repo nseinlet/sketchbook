@@ -48,15 +48,24 @@
   typedef volatile RwReg    PortReg;
   typedef uint32_t          PortMask;
   #define HAVE_PORTREG
-#elif defined(__arm__) || defined(ARDUINO_FEATHER52)
+#elif (defined(__arm__) || defined(ARDUINO_FEATHER52)) && !defined(ARDUINO_ARCH_MBED)
   typedef volatile uint32_t PortReg;
   typedef uint32_t          PortMask;
   #define HAVE_PORTREG
 #endif
 
-#define BLACK                          0 ///< Draw 'off' pixels
-#define WHITE                          1 ///< Draw 'on' pixels
-#define INVERSE                        2 ///< Invert pixels
+/// The following "raw" color names are kept for backwards client compatability
+/// They can be disabled by predefining this macro before including the Adafruit header
+/// client code will then need to be modified to use the scoped enum values directly
+#ifndef NO_ADAFRUIT_SSD1306_COLOR_COMPATIBILITY
+#define BLACK                     SSD1306_BLACK    ///< Draw 'off' pixels
+#define WHITE                     SSD1306_WHITE    ///< Draw 'on' pixels
+#define INVERSE                   SSD1306_INVERSE  ///< Invert pixels
+#endif
+        /// fit into the SSD1306_ naming scheme
+#define SSD1306_BLACK               0    ///< Draw 'off' pixels
+#define SSD1306_WHITE               1    ///< Draw 'on' pixels
+#define SSD1306_INVERSE             2    ///< Invert pixels
 
 #define SSD1306_MEMORYMODE          0x20 ///< See datasheet
 #define SSD1306_COLUMNADDR          0x21 ///< See datasheet
@@ -108,7 +117,7 @@
  #define SSD1306_LCDHEIGHT  16 ///< DEPRECATED: height w/SSD1306_96_16 defined
 #endif
 
-/*! 
+/*!
     @brief  Class that stores state and functions for interacting with
             SSD1306 OLED displays.
 */
@@ -167,12 +176,15 @@ class Adafruit_SSD1306 : public Adafruit_GFX {
   PortReg     *mosiPort   , *clkPort   , *dcPort   , *csPort;
   PortMask     mosiPinMask,  clkPinMask,  dcPinMask,  csPinMask;
 #endif
-#if defined(SPI_HAS_TRANSACTION)
-  SPISettings  spiSettings;
-#endif
 #if ARDUINO >= 157
   uint32_t     wireClk;    // Wire speed for SSD1306 transfers
   uint32_t     restoreClk; // Wire speed following SSD1306 transfers
+#endif
+  uint8_t      contrast;    // normal contrast setting for this device
+#if defined(SPI_HAS_TRANSACTION)
+protected:
+  // Allow sub-class to change
+  SPISettings  spiSettings;
 #endif
 };
 
