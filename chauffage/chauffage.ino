@@ -23,6 +23,10 @@ int deviceCount = 0;
 float temperatures[MAX_SENSORS];
 String temperaturesAddr[MAX_SENSORS];
 
+//Pressure_sensor
+#define MAX_PRESSURE_SENSORS 2
+float pressure[MAX_PRESSURE_SENSORS];
+
 //Web server
 byte mac[] = { 0x90, 0xA2, 0xDA, 0x00, 0xF1, 0xDE };
 IPAddress  ip;
@@ -44,6 +48,7 @@ void setup() {
   sensor_t sensor;
   dht.temperature().getSensor(&sensor);
   delayMS = sensor.min_delay / 1000;
+  if (delayMS<5000){delayMS=5000;};
 
   //T° sensor
   sensors.begin();
@@ -52,18 +57,13 @@ void setup() {
   Serial.print("Found ");
   deviceCount = sensors.getDeviceCount();
   Serial.print(deviceCount, DEC);
-
-  for (int i = 0;  i < MAX_SENSORS;  i++)
-  {
-    temperatures[i] = 11.4+i;
-    temperaturesAddr[i] = String("12345");
-  }
 }
 
-void loop() {
+void loop() { 
   if (millis() - lastReadingTime > delayMS) {
       readCheapSensor();
       readSensorsValues();
+      readPreasureGauge();
   
       lastReadingTime = millis();
   };
@@ -101,6 +101,16 @@ void listenForEthernetClients() {
             }
             client.println("]");
           };
+          client.print(",\"pressures\":[");
+          for (int i = 0;  i < MAX_PRESSURE_SENSORS;  i++){
+            if (i > 0) client.print(",");
+            client.print("{\"id\": ");
+            client.print(i+1);
+            client.print(", \"pressure\": ");
+            client.print(pressure[i]);
+            client.print("}");
+          };
+          client.println("],");
           client.println("}");
           break;
         }
@@ -154,10 +164,82 @@ String sensorAddressToString(DeviceAddress deviceAddress)
   String toReturn="";
   for (uint8_t i = 0; i < 8; i++)
   {
-    toReturn+=String("0x");
     if (deviceAddress[i] < 0x10) toReturn+="0";
     toReturn+=String(deviceAddress[i], HEX);
-    if (i < 7) toReturn+="-";
+    if (i < 7) toReturn+=":";
   }
   return toReturn;
+}
+
+void readPreasureGauge()
+{
+   float tmp_pressure;
+
+   tmp_pressure=readPreasureGaugeLoop(A0);
+   if (tmp_pressure>0.0){
+      pressure[0]=tmp_pressure;
+   };
+   tmp_pressure=readPreasureGaugeLoop(A1);
+   if (tmp_pressure>0.0){
+      pressure[1]=tmp_pressure;
+   };
+   
+}
+
+float readPreasureGaugeLoop(int pin)
+{
+   int count = 16;
+   float raw = 0;
+   float tmp;
+   int valid_measure=0;
+   
+   for (int i=0; i< count; i++){
+     tmp=readPreasureGaugeReal(pin);
+     if (tmp>0) {
+      raw+=tmp;
+      valid_measure+=1;
+     }
+   };
+   if (valid_measure>0){
+    Serial.print(raw/valid_measure);
+    Serial.println(" Bars");
+    return raw/valid_measure;
+   }
+   Serial.print(raw);
+    Serial.print(" Bars for invalids: ");
+    Serial.println(valid_measure);
+   return 0;
+}
+
+float readPreasureGaugeReal(int pin)
+{
+  // MEASUREMENT
+  int raw = analogRead(pin);  // return 0..1023 representing 0..5V
+
+  // CONVERT TO VOLTAGE
+  float voltage = 5.0 * raw / 1023; // voltage = 0..5V;  we do the math in millivolts!!
+
+  // INTERPRET VOLTAGES
+  if (voltage < 0.5)
+  {
+     //Serial.print(voltage);
+     //Serial.println("v :open circuit");
+     return 0,0;
+  }
+  else if (voltage <= 4.5)  // between 0.5 and 4.5 now...
+  {
+    float psi = mapFloat(voltage, 0.5, 4.5, 0.0, 300.0);    // variation on the Arduino map() function
+    //Serial.println(psi);
+    return psi/14.504;
+  }
+  else
+  {
+    //Serial.println("Signal too high!!");
+    return 0,0;
+  }
+}
+
+float mapFloat(float x, float in_min, float in_max, float out_min, float out_max)
+{
+  return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
 }
