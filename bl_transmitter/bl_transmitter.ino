@@ -1,11 +1,20 @@
+/*
+  Read PWM from receiver
+  and write them on BLE services that can be read
+
+  The circuit:
+  - Arduino Nano 33 BLE, or Arduino Nano 33 BLE Sense board.
+*/
+
 #include <ArduinoBLE.h>
 
 #define default_timeout 10000
 #define first_pin 2
 #define last_pin 6
 
-
+unsigned int debug_pwm;
 unsigned int pwm_value[last_pin+1];
+int increment;
 
 //Bluetooth part
 BLEService PWMService("fd6db617-daf2-4502-823c-3d9ae8915948");  // BLE PWM service
@@ -40,29 +49,27 @@ void setup() {
   BLE.setLocalName("PWM_Emitter");  // Set name for connection
   BLE.setAdvertisedService(PWMService); // Advertise service
   PWMService.addCharacteristic(PWMchannelsCharacteristic); // Add characteristic to service
-  BLE.addService(PWMService); // Add service
   PWMchannelsCharacteristic.setValue(1+last_pin-first_pin); // # of channels
   for(int i=0; i<=last_pin-first_pin; i++){
     PWMService.addCharacteristic(pwm_channels[i]);
     pwm_channels[i].setValue(1500);
   };
 
+  BLE.addService(PWMService); // Add service
+
   BLE.advertise();  // Start advertising
   Serial.print("Peripheral device MAC: ");
   Serial.println(BLE.address());
   Serial.println("Waiting for connections...");
+  debug_pwm=1500;
+  increment=10;
 }
 
 // function prototype to define default timeout value
 static unsigned int newPulseIn(const byte pin, const byte state, const unsigned long timeout = 1000000L);
 
 // using a macro to avoid function call overhead
-#define WAIT_FOR_PIN_STATE(state) \
-  while (digitalRead(pin) != (state)) { \
-    if (micros() - timestamp > timeout) { \
-      return 0; \
-    } \
-  }
+#define WAIT_FOR_PIN_STATE(state) while (digitalRead(pin) != (state));
 
 static unsigned int newPulseIn(const byte pin, const byte state, const unsigned long timeout) {
   unsigned long timestamp = micros();
@@ -70,16 +77,26 @@ static unsigned int newPulseIn(const byte pin, const byte state, const unsigned 
   WAIT_FOR_PIN_STATE(state);
   timestamp = micros();
   WAIT_FOR_PIN_STATE(!state);
-  return micros() - timestamp;
+  return (unsigned int)(micros() - timestamp);
 }
 
 void read_pwm(){
-//  for(int i=first_pin;i<=last_pin;i++){
-//    pwm_value[i] = newPulseIn(i, HIGH, default_timeout);
-//  }
-  //Debug mode
   for(int i=first_pin;i<=last_pin;i++){
-    pwm_value[i] = 1200+i*10;
+    pwm_value[i] = newPulseIn(i, HIGH, default_timeout);
+    Serial.println(pwm_value[i]);
+    delay(1);
+  }
+  //Debug mode
+//  for(int i=first_pin;i<=last_pin;i++){
+//    debug_pwm=debug_pwm+increment;
+//  if (debug_pwm>1900){increment=-10;};
+//  if (debug_pwm<1100){increment=10;};
+//    pwm_value[i] = debug_pwm;
+//  }
+
+  //Set values to channels
+  for(int i=0; i<=last_pin-first_pin; i++){
+    pwm_channels[i].setValue(pwm_value[i+first_pin]);
   }
 }
 
@@ -100,7 +117,7 @@ void loop(){
 
     // check the battery level every 200ms
     // while the central is connected:
-    while (central.connected());
+    while (central.connected()){read_pwm();};
     // when the central disconnects, turn off the LED:
     digitalWrite(LED_BUILTIN, LOW);
     Serial.print("Disconnected from central: ");
@@ -109,7 +126,5 @@ void loop(){
 
   //Read PWM values and store them in ble service
   read_pwm();
-  for(int i=0; i<=last_pin-first_pin; i++){
-    pwm_channels[i].setValue(pwm_value[i+first_pin]);
-  }
+  
 };
