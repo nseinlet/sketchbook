@@ -1,85 +1,73 @@
 /*
- * IRremote: IRrecvDemo - demonstrates receiving IR codes with IRrecv
+ * IRremote: IRrelay - demonstrates receiving IR codes with IRrecv
+ * Toggles an output pin at each command received
  * An IR detector/demodulator must be connected to the input RECV_PIN.
- * Version 0.1 July, 2009
- * Copyright 2009 Ken Shirriff
- * http://arcfn.com
+ * Initially coded 2009 Ken Shirriff http://www.righto.com
  */
 
 #include <IRremote.h>
 
-int RECV_PIN = 11;
-int RELAY_PIN = 4;
+#if defined(ESP32)
+int IR_RECEIVE_PIN = 15;
+#else
+int IR_RECEIVE_PIN = 11;
+#endif
+int RELAY_PIN = 4; // is labeled D2 on the Chinese SAMD21 M0-Mini clone
 
-IRrecv irrecv(RECV_PIN);
-decode_results results;
+// On the Zero and others we switch explicitly to SerialUSB
+#if defined(ARDUINO_ARCH_SAMD)
+#define Serial SerialUSB
+// The Chinese SAMD21 M0-Mini clone has no led connected, if you connect it, it is on pin 24 like on the original board.
+// Attention! D2 and D4 are reversed on these boards
+//#undef LED_BUILTIN
+//#define LED_BUILTIN 25 // Or choose pin 25, it is the RX pin, but active low.
+#endif
 
-// Dumps out the decode_results structure.
-// Call this after IRrecv::decode()
-// void * to work around compiler issue
-//void dump(void *v) {
-//  decode_results *results = (decode_results *)v
-void dump(decode_results *results) {
-  int count = results->rawlen;
-  if (results->decode_type == UNKNOWN) {
-    Serial.println("Could not decode message");
-  } 
-  else {
-    if (results->decode_type == NEC) {
-      Serial.print("Decoded NEC: ");
-    } 
-    else if (results->decode_type == SONY) {
-      Serial.print("Decoded SONY: ");
-    } 
-    else if (results->decode_type == RC5) {
-      Serial.print("Decoded RC5: ");
-    } 
-    else if (results->decode_type == RC6) {
-      Serial.print("Decoded RC6: ");
-    }
-    Serial.print(results->value, HEX);
-    Serial.print(" (");
-    Serial.print(results->bits, DEC);
-    Serial.println(" bits)");
-  }
-  Serial.print("Raw (");
-  Serial.print(count, DEC);
-  Serial.print("): ");
+void dump();
 
-  for (int i = 0; i < count; i++) {
-    if ((i % 2) == 1) {
-      Serial.print(results->rawbuf[i]*USECPERTICK, DEC);
-    } 
-    else {
-      Serial.print(-(int)results->rawbuf[i]*USECPERTICK, DEC);
-    }
-    Serial.print(" ");
-  }
-  Serial.println("");
-}
+void setup() {
+    pinMode(LED_BUILTIN, OUTPUT);
+    pinMode(RELAY_PIN, OUTPUT);
 
-void setup()
-{
-  pinMode(RELAY_PIN, OUTPUT);
-  pinMode(13, OUTPUT);
-    Serial.begin(9600);
-  irrecv.enableIRIn(); // Start the receiver
+    Serial.begin(115200);
+#if defined(__AVR_ATmega32U4__) || defined(SERIAL_USB) || defined(SERIAL_PORT_USBVIRTUAL)  || defined(ARDUINO_attiny3217)
+    delay(2000); // To be able to connect Serial monitor after reset or power up and before first printout
+#endif
+    // Just to know which program is running on my Arduino
+    Serial.println(F("START " __FILE__ " from " __DATE__ "\r\nUsing library version " VERSION_IRREMOTE));
+
+    IrReceiver.begin(IR_RECEIVE_PIN, ENABLE_LED_FEEDBACK); // Start the receiver, enable feedback LED, take LED feedback pin from the internal boards definition
+
+    Serial.print(F("Ready to receive IR signals at pin "));
+    Serial.println(IR_RECEIVE_PIN);
 }
 
 int on = 0;
 unsigned long last = millis();
 
 void loop() {
-  if (irrecv.decode(&results)) {
-    // If it's been at least 1/4 second since the last
-    // IR received, toggle the relay
-    if (millis() - last > 250) {
-      on = !on;
-      digitalWrite(RELAY_PIN, on ? HIGH : LOW);
-      digitalWrite(13, on ? HIGH : LOW);
-      dump(&results);
+    if (IrReceiver.decode()) {
+        // If it's been at least 1/4 second since the last
+        // IR received, toggle the relay
+        if (millis() - last > 250) {
+            on = !on;
+            Serial.print(F("Switch relay "));
+            if (on) {
+                digitalWrite(RELAY_PIN, HIGH);
+                Serial.println(F("on"));
+            } else {
+                digitalWrite(RELAY_PIN, LOW);
+                Serial.println(F("off"));
+            }
+
+            IrReceiver.printIRResultShort(&Serial);
+            Serial.println();
+            if (IrReceiver.decodedIRData.protocol == UNKNOWN) {
+                // We have an unknown protocol, print more info
+                IrReceiver.printIRResultRawFormatted(&Serial, true);
+            }
+        }
+        last = millis();
+        IrReceiver.resume(); // Enable receiving of the next value
     }
-    last = millis();      
-    irrecv.resume(); // Receive the next value
-  }
 }

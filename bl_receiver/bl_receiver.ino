@@ -1,40 +1,71 @@
 /*
-  Read PWM from BLE and write them to servos
+  Peripheral Explorer
+
+  This example scans for BLE peripherals until one with a particular name ("LED")
+  is found. Then connects, and discovers + prints all the peripheral's attributes.
 
   The circuit:
-  - Arduino Nano 33 BLE, or Arduino Nano 33 BLE Sense board.
+  - Arduino MKR WiFi 1010, Arduino Uno WiFi Rev2 board, Arduino Nano 33 IoT,
+    Arduino Nano 33 BLE, or Arduino Nano 33 BLE Sense board.
+
+  You can use it with another board that is compatible with this library and the
+  Peripherals -> LED example.
+
+  This example code is in the public domain.
 */
 
 #include <ArduinoBLE.h>
-#include <Servo.h>
 
 #define pwm_peripheral_name "PWM_Emitter"
 #define service_uuid "fd6db617-daf2-4502-823c-3d9ae8915948"
 #define pwmchannels_uuid "c9724225-18b5-4e34-81bc-0293b7cbddd4"
 #define first_pin 2
+#define last_pin 6
 
 const char *pwm_channels_uuids[] = {"1f16f2dc-3e06-4217-af6d-e68010f6ced0","3b5baf05-2931-4da2-bc78-b9a141abf658","006dd860-7678-40da-b15e-c7f968017764","230598d7-99e2-46c2-b2b2-839a0cce27d4","e046d73f-6cf3-4b36-a078-d4b14b6e3a22","98901c11-4aaa-4db5-81fc-6db19024287f","81d975dc-44b6-4450-80b5-8cbbbb7f6827","7086616f-7854-4b5e-a84f-eee31ab16426","c682bcf1-0e40-4777-bbaa-ccb23561099c","98e4e078-0ba0-473a-9eef-bfcf46e9d1f4"};
 
 const int MAX_CHANNEL=10;
-unsigned int nbr_channels;
-BLECharacteristic nbr_channels_charact;
-BLECharacteristic tmp_channels_charact[MAX_CHANNEL];
-unsigned int pwm_values[MAX_CHANNEL];
-Servo myservo[MAX_CHANNEL];
 
 union ArrayToInteger {
-  byte array[4];
   unsigned int integer;
+  byte array[sizeof(integer)];
 };
 
-unsigned int byteArrayToInt(const byte data[], int length) {
-  ArrayToInteger converter;
-  
-  for (int i = 0; i < min(length,4); i++) {
-        converter.array[i] = data[i];   
-  };
-  return converter.integer ;
-};
+BLECharacteristic tmp_channels_charact[MAX_CHANNEL];
+ArrayToInteger pwm_values[MAX_CHANNEL];
+unsigned int debug_pwm;
+
+// using a macro to avoid function call overhead
+#define WAIT_FOR_PIN_STATE(state) \
+  while (digitalRead(pin) != (state)) { \
+    if (micros() - timestamp > timeout) { \
+      return 0; \
+    } \
+  }
+
+static unsigned int newPulseIn(const byte pin, const byte state, const unsigned long timeout) {
+  unsigned long timestamp = micros();
+  WAIT_FOR_PIN_STATE(!state);
+  WAIT_FOR_PIN_STATE(state);
+  timestamp = micros();
+  WAIT_FOR_PIN_STATE(!state);
+  return (unsigned int)(micros() - timestamp);
+}
+
+void read_pwm(){
+//  for(int i=first_pin;i<=last_pin;i++){
+//    pwm_value[i] = newPulseIn(i, HIGH, default_timeout);
+//  }
+  //Debug mode
+  for(int i=first_pin;i<=last_pin;i++){
+    debug_pwm=debug_pwm+10;
+    if(debug_pwm>1900){debug_pwm=1100;};
+    pwm_values[i].integer=debug_pwm;
+    Serial.println(tmp_channels_charact[i].uuid());
+    tmp_channels_charact[i].writeValue(pwm_values[i].array, sizeof(pwm_values[i].integer));
+  }
+}
+
 
 void setup() {
   Serial.begin(115200);
@@ -49,10 +80,7 @@ void setup() {
   Serial.println("BLE Central - Peripheral Explorer");
 
   BLE.scanForName(pwm_peripheral_name);
-
-  for (int i=0;i<MAX_CHANNEL;i++){
-    myservo[i].attach(first_pin+i);
-  }
+  debug_pwm=1500;
 }
 
 void loop() {
@@ -94,45 +122,24 @@ void explorerPeripheral(BLEDevice peripheral) {
 
     BLEService pwmService = peripheral.service(service_uuid);
     if (pwmService) {
-      nbr_channels=0;
       exploreService(pwmService);
     };
-    Serial.println();
-  };
-  while (peripheral.connected()){readValues();delay(1);};
-  
+
+  }
+  while (peripheral.connected()){
+    read_pwm();
+  }
 };
 
 void exploreService(BLEService service) {
   // print the UUID of the service
   Serial.print("Service ");
   Serial.println(service.uuid());
-  if(nbr_channels==0){
-    nbr_channels_charact = service.characteristic(pwmchannels_uuid);
-    if(nbr_channels_charact){
-      nbr_channels_charact.read();
-      nbr_channels = byteArrayToInt(nbr_channels_charact.value(), nbr_channels_charact.valueLength());
-    };
-    Serial.print("Channels :");
-    Serial.println(nbr_channels);
+
+  for (int i = 0; i < min(MAX_CHANNEL, service.characteristicCount()); i++) {
+    tmp_channels_charact[i] = service.characteristic(pwm_channels_uuids[i]);
+    Serial.println(tmp_channels_charact[i].uuid());
   };
   
-  for (int i = 0; i < min((int)nbr_channels, MAX_CHANNEL); i++) {
-    tmp_channels_charact[i] = service.characteristic(pwm_channels_uuids[i]);
-    readValues();
-  }
 }
-
-void readValues() {
-  for (int i = 0; i < min((int)nbr_channels, MAX_CHANNEL); i++) {
-    tmp_channels_charact[i].read();
-    pwm_values[i] = byteArrayToInt(tmp_channels_charact[i].value(), tmp_channels_charact[i].valueLength());
-    
-    Serial.print(i);
-    Serial.print(" : ");
-    Serial.println(pwm_values[i]);
-    myservo[i].write(map(pwm_values[i], 1100, 1900, 45, 135));
-  }
-};
-
   
