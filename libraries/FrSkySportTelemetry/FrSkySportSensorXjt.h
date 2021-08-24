@@ -1,6 +1,6 @@
 /*
-  FrSky XJT module S.Port output decoder class for Teensy 3.x and 328P based boards (e.g. Pro Mini, Nano, Uno)
-  (c) Pawelsky 20160313
+  FrSky XJT module S.Port output decoder class for Teensy LC/3.x/4.x, ESP8266, ATmega2560 (Mega) and ATmega328P based boards (e.g. Pro Mini, Nano, Uno)
+  (c) Pawelsky 20210108
   Not for commercial use
 
   Note that this special sensor class can only be used for decoding.

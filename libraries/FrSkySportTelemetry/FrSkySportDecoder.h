@@ -1,6 +1,6 @@
 /*
-  FrSky telemetry decoder class for Teensy 3.x and 328P based boards (e.g. Pro Mini, Nano, Uno)
-  (c) Pawelsky 20160818
+  FrSky telemetry decoder class for Teensy LC/3.x/4.x, ESP8266, ATmega2560 (Mega) and ATmega328P based boards (e.g. Pro Mini, Nano, Uno)
+  (c) Pawelsky 20210108
   Not for commercial use
 */
 
@@ -17,7 +17,8 @@
 class FrSkySportDecoder
 {
   public:
-    FrSkySportDecoder(bool polling = false);
+    FrSkySportDecoder(bool polling); // This constructor is obsolete and kept for backward compatibility only
+    FrSkySportDecoder(FrSkySportPolling *polling = NULL);
     void begin(FrSkySportSingleWireSerial::SerialId id,
                 FrSkySportSensor* sensor1,         FrSkySportSensor* sensor2 =  NULL, FrSkySportSensor* sensor3 =  NULL, 
                 FrSkySportSensor* sensor4  = NULL, FrSkySportSensor* sensor5 =  NULL, FrSkySportSensor* sensor6 =  NULL,
@@ -32,12 +33,12 @@ class FrSkySportDecoder
     uint16_t decode();
 
   private:
-    enum State { START_FRAME = 0, SENSOR_ID = 1, DATA_FRAME = 2, APP_ID_BYTE_1 = 3, APP_ID_BYTE_2 = 4, DATA_BYTE_1 = 5, DATA_BYTE_2 = 6, DATA_BYTE_3 = 7, DATA_BYTE_4 = 8, CRC = 9 };
+    enum State { START_FRAME = 0, SENSOR_ID = 1, DATA_FRAME = 2, APP_ID_BYTE_1 = 3, APP_ID_BYTE_2 = 4, DATA_BYTE_1 = 5, DATA_BYTE_2 = 6, DATA_BYTE_3 = 7, DATA_BYTE_4 = 8, CRC_BYTE = 9 };
     FrSkySportSensor* sensors[FRSKY_DECODER_MAX_SENSORS];
     FrSkySportSingleWireSerial serial;
     uint8_t  sensorCount;
     State    state;
-    boolean  hasStuffing;
+    bool     hasStuffing;
     uint8_t  id;
     uint16_t appId;
     uint32_t data;

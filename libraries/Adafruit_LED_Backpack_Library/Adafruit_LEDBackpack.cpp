@@ -126,7 +126,7 @@ static const uint16_t alphafonttable[] PROGMEM = {
     0b0000000001110001, // F
     0b0000000010111101, // G
     0b0000000011110110, // H
-    0b0001001000000000, // I
+    0b0001001000001001, // I
     0b0000000000011110, // J
     0b0010010001110000, // K
     0b0000000000111000, // L
@@ -202,7 +202,7 @@ void Adafruit_LEDBackpack::blinkRate(uint8_t b) {
 
 Adafruit_LEDBackpack::Adafruit_LEDBackpack(void) {}
 
-void Adafruit_LEDBackpack::begin(uint8_t _addr = 0x70) {
+void Adafruit_LEDBackpack::begin(uint8_t _addr) {
   i2c_addr = _addr;
 
   Wire.begin();

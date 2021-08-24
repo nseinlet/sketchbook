@@ -3,13 +3,17 @@
  *
  *  Contains functions for receiving and sending Bose IR Protocol
  *
- *  This file is part of Arduino-IRremote https://github.com/z3t0/Arduino-IRremote.
+ *  This file is part of Arduino-IRremote https://github.com/Arduino-IRremote/Arduino-IRremote.
  *
  */
+#include <Arduino.h>
 
-//#define DEBUG // Activate this for lots of lovely debug output.
-#include "IRremote.h"
+//#define DEBUG // Activate this for lots of lovely debug output from this decoder.
+#include "IRremoteInt.h" // evaluates the DEBUG for DEBUG_PRINT
 
+/** \addtogroup Decoder Decoders and encoders for different protocols
+ * @{
+ */
 //==============================================================================
 //                           BBBB    OOO    SSSS  EEEEE
 //                           B   B  O   O  S      E
@@ -38,13 +42,12 @@
 
 //+=============================================================================
 
-void IRsend::sendBoseWave(uint8_t aCommand, uint8_t aNumberOfRepeats) {
+void IRsend::sendBoseWave(uint8_t aCommand, uint_fast8_t aNumberOfRepeats) {
     // Set IR carrier frequency
     enableIROut(38);
 
-    uint8_t tNumberOfCommands = aNumberOfRepeats + 1;
+    uint_fast8_t tNumberOfCommands = aNumberOfRepeats + 1;
     while (tNumberOfCommands > 0) {
-        noInterrupts();
 
         // Header
         mark(BOSEWAVE_HEADER_MARK);
@@ -53,9 +56,7 @@ void IRsend::sendBoseWave(uint8_t aCommand, uint8_t aNumberOfRepeats) {
         uint16_t tData = ((~aCommand) << 8) | aCommand;
 
         sendPulseDistanceWidthData(BOSEWAVE_BIT_MARK, BOSEWAVE_ONE_SPACE, BOSEWAVE_BIT_MARK, BOSEWAVE_ZERO_SPACE, tData,
-        BOSEWAVE_BITS, LSB_FIRST, SEND_STOP_BIT);
-
-        interrupts();
+        BOSEWAVE_BITS, PROTOCOL_IS_LSB_FIRST, SEND_STOP_BIT);
 
         tNumberOfCommands--;
         // skip last delay!
@@ -70,36 +71,36 @@ void IRsend::sendBoseWave(uint8_t aCommand, uint8_t aNumberOfRepeats) {
 bool IRrecv::decodeBoseWave() {
 
     // Check header "mark"
-    if (!MATCH_MARK(decodedIRData.rawDataPtr->rawbuf[1], BOSEWAVE_HEADER_MARK)) {
+    if (!matchMark(decodedIRData.rawDataPtr->rawbuf[1], BOSEWAVE_HEADER_MARK)) {
         // no debug output, since this check is mainly to determine the received protocol
         return false;
     }
 
     // Check we have enough data +4 for initial gap, start bit mark and space + stop bit mark
     if (decodedIRData.rawDataPtr->rawlen != (2 * BOSEWAVE_BITS) + 4) {
-        DBG_PRINT("Bose: ");
-        DBG_PRINT("Data length=");
-        DBG_PRINT(decodedIRData.rawDataPtr->rawlen);
-        DBG_PRINTLN(" is not 36");
+        DEBUG_PRINT("Bose: ");
+        DEBUG_PRINT("Data length=");
+        DEBUG_PRINT(decodedIRData.rawDataPtr->rawlen);
+        DEBUG_PRINTLN(" is not 36");
         return false;
     }
     // Check header "space"
-    if (!MATCH_SPACE(decodedIRData.rawDataPtr->rawbuf[2], BOSEWAVE_HEADER_SPACE)) {
-        DBG_PRINT("Bose: ");
-        DBG_PRINTLN("Header space length is wrong");
+    if (!matchSpace(decodedIRData.rawDataPtr->rawbuf[2], BOSEWAVE_HEADER_SPACE)) {
+        DEBUG_PRINT("Bose: ");
+        DEBUG_PRINTLN("Header space length is wrong");
         return false;
     }
 
-    if (!decodePulseDistanceData(BOSEWAVE_BITS, 3, BOSEWAVE_BIT_MARK, BOSEWAVE_ONE_SPACE, BOSEWAVE_ZERO_SPACE, false)) {
-        DBG_PRINT("Bose: ");
-        DBG_PRINTLN("Decode failed");
+    if (!decodePulseDistanceData(BOSEWAVE_BITS, 3, BOSEWAVE_BIT_MARK, BOSEWAVE_ONE_SPACE, BOSEWAVE_ZERO_SPACE, PROTOCOL_IS_LSB_FIRST)) {
+        DEBUG_PRINT("Bose: ");
+        DEBUG_PRINTLN("Decode failed");
         return false;
     }
 
     // Stop bit
-    if (!MATCH_MARK(decodedIRData.rawDataPtr->rawbuf[3 + (2 * BOSEWAVE_BITS)], BOSEWAVE_BIT_MARK)) {
-        DBG_PRINT("Bose: ");
-        DBG_PRINTLN(F("Stop bit mark length is wrong"));
+    if (!matchMark(decodedIRData.rawDataPtr->rawbuf[3 + (2 * BOSEWAVE_BITS)], BOSEWAVE_BIT_MARK)) {
+        DEBUG_PRINT("Bose: ");
+        DEBUG_PRINTLN(F("Stop bit mark length is wrong"));
         return false;
     }
 
@@ -110,8 +111,8 @@ bool IRrecv::decodeBoseWave() {
     uint8_t tCommandInverted = tDecodedValue >> 8;
     // parity check for command. Use this variant to avoid compiler warning "comparison of promoted ~unsigned with unsigned [-Wsign-compare]"
     if ((tCommandNotInverted ^ tCommandInverted) != 0xFF) {
-        DBG_PRINT("Bose: ");
-        DBG_PRINT("Command and inverted command check failed");
+        DEBUG_PRINT("Bose: ");
+        DEBUG_PRINT("Command and inverted command check failed");
         return false;
     }
 
@@ -126,3 +127,5 @@ bool IRrecv::decodeBoseWave() {
 
     return true;
 }
+
+/** @}*/

@@ -1,5 +1,62 @@
 FrSkySportTelemetry library changelog
 --------------------------------------
+Version 20210509
+  [NEW] Added Gas Suite sensor
+  [NEW] Simplified send function in sensors
+  [FIX] Removed unnecessary semicolon from GPS_DATE_TIME_DATA_PERIOD define
+
+Version 20210110
+  [FIX] Fixed unnecessary switching of TX/RX mode when serial with EVTINV is used
+
+Version 20210108
+  [FIX] Fixed detecting empty frame in decoder
+  [NEW] Added support for non-inverted two wire serial (when used e.g. with external S.Port inverter or devices with regular serial S.Port telemetry output such as Jumper R8 receiver or Pixhawk)
+  [NEW] Added support for Teensy 4.1
+  [FIX] Refactored the FrSkySportSingleWireSerial code to make it more readable
+  [FIX] Minor editorial corrections
+
+Version 20200503
+  [NEW] Added FrSkySportPollingDynamic polling class that polls active sensors more often and FrSkySportPollingSimple that polls sensors one by on in loop
+  [NEW] Updated examples to use the newly added polling classes
+  [NEW] Telemetry send method now returns the last sent APP ID
+  [NEW] Added support for ATmega2560 based boards (Arduino Mega)
+  [FIX] Fixed some typos
+  [FIX] Fixed cell voltage detection for in FrSkySportSensorXjt
+  [FIX] Replaced deprecated boolean type with bool in FrSkySportDecoder
+  [FIX] Added missing SOFT_SERIAL_PIN_Dx and SENSOR_NO_DATA_ID literals to keywords.txt
+  [FIX] Changed decoder state #define CRC to CRC_BYTE for consistency
+  [FIX] Added #define for empty frame header for better readability
+
+Version 20200112
+  [NEW] Added ESC sensor and updated examples
+  [NEW] Added library.properties file
+  [NEW] Added alternative Dxx pin naming for ESP8266 as printed on some of the boards
+  [FIX] Limited allowed ESP8266 pins to these actually supported by the SoftwareSerial library and not used for straping or HW serial pins
+
+Version 20191110
+  [FIX] Fixed incorrect detection of stuffed bytes in FrSkySportDecoder that caused some data not decoded properly
+
+Version 20191103
+  [NEW] Added support for Teensy 4.0 boards
+  [FIX] Slightly rearranged the serial port configuration and using defines now rather than magic numbers for clarity
+  [FIX] Simplified Teensy boards detection
+
+Version 20190824
+  [NEW] Added support for ESP8266 boards
+
+Version 20180402
+  [NEW] Added sending the RxBatt data when polling is enabled
+  [NEW] Added method for setting the RSSI and RxBatt to the FrSkySportTelemetry class (effective only when polling is enabled)
+  [NEW] Updated the FrSkySportTelemetryExample
+  [FIX] Minor editorial corrections
+
+Version 20171114
+  [FIX] Removed unnecessary debug message from FrSkySportDecoder.cpp
+
+Version 20160919
+  [NEW] Added support for Teensy LC, 3.5 and 3.6 boards and updated examples
+  [NEW] Added note about MLVSS sensor in the FLVSS sensor class
+
 Version 20160818
   [NEW] Added simplified polling to the FrSkySportTelemetry and FrSkySportDecoder class
   [NEW] Added POLLING_ENABLED define to examples to simplify switching the polling on/off

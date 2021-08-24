@@ -3,7 +3,7 @@
  *
  *  Contains functions for receiving and sending Lego Power Functions IR Protocol
  *
- *  This file is part of Arduino-IRremote https://github.com/z3t0/Arduino-IRremote.
+ *  This file is part of Arduino-IRremote https://github.com/Arduino-IRremote/Arduino-IRremote.
  *
  ************************************************************************************
  * MIT License
@@ -29,10 +29,14 @@
  *
  ************************************************************************************
  */
+#include <Arduino.h>
 
-//#define DEBUG // Activate this for lots of lovely debug output.
-#include "IRremote.h"
+//#define DEBUG // Activate this for lots of lovely debug output from this decoder.
+#include "IRremoteInt.h" // evaluates the DEBUG for DEBUG_PRINT
 
+/** \addtogroup Decoder Decoders and encoders for different protocols
+ * @{
+ */
 //==============================================================================
 //         L       EEEEEE   EEEE    OOOO
 //         L       E       E       O    O
@@ -80,13 +84,6 @@
 #define LEGO_AUTO_REPEAT_PERIOD_MAX 230000 // space for channel 3
 
 /*
- *  compatibility function
- */
-void IRsend::sendLegoPowerFunctions(IRData *aIRSendData, bool aDoSend5Times) {
-    sendLegoPowerFunctions(aIRSendData->address, aIRSendData->command, aIRSendData->command >> 4, aDoSend5Times);
-}
-
-/*
  * Compatibility function for legacy code, this calls the send raw data function
  */
 void IRsend::sendLegoPowerFunctions(uint16_t aRawData, bool aDoSend5Times) {
@@ -110,12 +107,12 @@ void IRsend::sendLegoPowerFunctions(uint8_t aChannel, uint8_t aCommand, uint8_t 
 void IRsend::sendLegoPowerFunctions(uint16_t aRawData, uint8_t aChannel, bool aDoSend5Times) {
     enableIROut(38);
 
-    DBG_PRINT("aRawData=0x");
-    DBG_PRINTLN(aRawData, HEX);
+    DEBUG_PRINT("sendLego aRawData=0x");
+    DEBUG_PRINTLN(aRawData, HEX);
 
     aChannel &= 0x03; // we have 4 channels
 
-    uint8_t tNumberOfCommands = 1;
+    uint_fast8_t tNumberOfCommands = 1;
     if (aDoSend5Times) {
         tNumberOfCommands = 5;
     }
@@ -123,16 +120,13 @@ void IRsend::sendLegoPowerFunctions(uint16_t aRawData, uint8_t aChannel, bool aD
     uint8_t tRepeatPeriod = (110 - (LEGO_AVERAGE_DURATION / 1000)) + (aChannel * 40); // from 100 to 220
 
     while (tNumberOfCommands > 0) {
-        noInterrupts();
 
         // Header
         mark(LEGO_HEADER_MARK);
         space(LEGO_HEADER_SPACE);
 
-        sendPulseDistanceWidthData(LEGO_BIT_MARK, LEGO_ONE_SPACE, LEGO_BIT_MARK, LEGO_ZERO_SPACE, aRawData, LEGO_BITS, MSB_FIRST,
+        sendPulseDistanceWidthData(LEGO_BIT_MARK, LEGO_ONE_SPACE, LEGO_BIT_MARK, LEGO_ZERO_SPACE, aRawData, LEGO_BITS, PROTOCOL_IS_MSB_FIRST,
         SEND_STOP_BIT);
-
-        interrupts();
 
         tNumberOfCommands--;
         // skip last delay!
@@ -143,43 +137,42 @@ void IRsend::sendLegoPowerFunctions(uint16_t aRawData, uint8_t aChannel, bool aD
     }
 }
 
-#if DECODE_LEGO_PF
 /*
  * Mode is stored in the upper nibble of command
  */
 bool IRrecv::decodeLegoPowerFunctions() {
 
     // Check header "mark"
-    if (!MATCH_MARK(decodedIRData.rawDataPtr->rawbuf[1], LEGO_HEADER_MARK)) {
+    if (!matchMark(decodedIRData.rawDataPtr->rawbuf[1], LEGO_HEADER_MARK)) {
         // no debug output, since this check is mainly to determine the received protocol
         return false;
     }
 
     // Check we have enough data - +4 for initial gap, start bit mark and space + stop bit mark
     if (decodedIRData.rawDataPtr->rawlen != (2 * LEGO_BITS) + 4) {
-        DBG_PRINT("LEGO: ");
-        DBG_PRINT("Data length=");
-        DBG_PRINT(decodedIRData.rawDataPtr->rawlen);
-        DBG_PRINTLN(" is not 36");
+        DEBUG_PRINT("LEGO: ");
+        DEBUG_PRINT("Data length=");
+        DEBUG_PRINT(decodedIRData.rawDataPtr->rawlen);
+        DEBUG_PRINTLN(" is not 36");
         return false;
     }
     // Check header "space"
-    if (!MATCH_SPACE(decodedIRData.rawDataPtr->rawbuf[2], LEGO_HEADER_SPACE)) {
-        DBG_PRINT("LEGO: ");
-        DBG_PRINTLN("Header space length is wrong");
+    if (!matchSpace(decodedIRData.rawDataPtr->rawbuf[2], LEGO_HEADER_SPACE)) {
+        DEBUG_PRINT("LEGO: ");
+        DEBUG_PRINTLN("Header space length is wrong");
         return false;
     }
 
-    if (!decodePulseDistanceData(LEGO_BITS, 3, LEGO_BIT_MARK, LEGO_ONE_SPACE, LEGO_ZERO_SPACE, true)) {
-        DBG_PRINT("LEGO: ");
-        DBG_PRINTLN("Decode failed");
+    if (!decodePulseDistanceData(LEGO_BITS, 3, LEGO_BIT_MARK, LEGO_ONE_SPACE, LEGO_ZERO_SPACE, PROTOCOL_IS_MSB_FIRST)) {
+        DEBUG_PRINT("LEGO: ");
+        DEBUG_PRINTLN("Decode failed");
         return false;
     }
 
     // Stop bit
-    if (!MATCH_MARK(decodedIRData.rawDataPtr->rawbuf[3 + (2 * LEGO_BITS)], LEGO_BIT_MARK)) {
-        DBG_PRINT("LEGO: ");
-        DBG_PRINTLN(F("Stop bit mark length is wrong"));
+    if (!matchMark(decodedIRData.rawDataPtr->rawbuf[3 + (2 * LEGO_BITS)], LEGO_BIT_MARK)) {
+        DEBUG_PRINT("LEGO: ");
+        DEBUG_PRINTLN(F("Stop bit mark length is wrong"));
         return false;
     }
 
@@ -197,19 +190,19 @@ bool IRrecv::decodeLegoPowerFunctions() {
 
     // parity check
     if (tParityReceived != tParityComputed) {
-        DBG_PRINT("LEGO: ");
-        DBG_PRINT("Parity is not correct. expected=0x");
-        DBG_PRINT(tParityComputed, HEX);
-        DBG_PRINT(" received=0x");
-        DBG_PRINT(tParityReceived, HEX);
-        DBG_PRINT(", raw=0x");
-        DBG_PRINT(tDecodedValue, HEX);
-        DBG_PRINT(", 3 nibbles are 0x");
-        DBG_PRINT(tToggleEscapeChannel, HEX);
-        DBG_PRINT(", 0x");
-        DBG_PRINT(tMode, HEX);
-        DBG_PRINT(", 0x");
-        DBG_PRINTLN(tData, HEX);
+        DEBUG_PRINT("LEGO: ");
+        DEBUG_PRINT("Parity is not correct. expected=0x");
+        DEBUG_PRINT(tParityComputed, HEX);
+        DEBUG_PRINT(" received=0x");
+        DEBUG_PRINT(tParityReceived, HEX);
+        DEBUG_PRINT(", raw=0x");
+        DEBUG_PRINT(tDecodedValue, HEX);
+        DEBUG_PRINT(", 3 nibbles are 0x");
+        DEBUG_PRINT(tToggleEscapeChannel, HEX);
+        DEBUG_PRINT(", 0x");
+        DEBUG_PRINT(tMode, HEX);
+        DEBUG_PRINT(", 0x");
+        DEBUG_PRINTLN(tData, HEX);
         // might not be an error, so just continue
         decodedIRData.flags = IRDATA_FLAGS_PARITY_FAILED | IRDATA_FLAGS_IS_MSB_FIRST;
     }
@@ -228,4 +221,4 @@ bool IRrecv::decodeLegoPowerFunctions() {
     return true;
 }
 
-#endif // DECODE_LEGO_PF
+/** @}*/

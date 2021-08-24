@@ -1,6 +1,6 @@
 /*
-  FrSky Variometer (high precision) sensor class for Teensy 3.x and 328P based boards (e.g. Pro Mini, Nano, Uno)
-  (c) Pawelsky 20151018
+  FrSky Variometer (high precision) sensor class for Teensy LC/3.x/4.x, ESP8266, ATmega2560 (Mega) and ATmega328P based boards (e.g. Pro Mini, Nano, Uno)
+  (c) Pawelsky 20210509
   Not for commercial use
 */
 
@@ -14,38 +14,24 @@ void FrSkySportSensorVario::setData(float altitude, float vsi)
   vsiData = (int32_t)(vsi * 100);
 }
 
-void FrSkySportSensorVario::send(FrSkySportSingleWireSerial& serial, uint8_t id, uint32_t now)
+uint16_t FrSkySportSensorVario::send(FrSkySportSingleWireSerial& serial, uint8_t id, uint32_t now)
 {
+  uint16_t dataId = SENSOR_NO_DATA_ID;
   if(sensorId == id)
   {
     switch(sensorDataIdx)
     {
       case 0:
-        if(now > altitudeTime)
-        {
-          altitudeTime = now + VARIO_ALT_DATA_PERIOD;
-          serial.sendData(VARIO_ALT_DATA_ID, altitudeData);
-        }
-        else
-        {
-          serial.sendEmpty(VARIO_ALT_DATA_ID);
-        }
+        sendSingleData(serial, VARIO_ALT_DATA_ID, dataId, altitudeData, VARIO_ALT_DATA_PERIOD, altitudeTime, now);
         break;
       case 1:
-        if(now > vsiTime)
-        {
-          vsiTime = now + VARIO_VSI_DATA_PERIOD;
-          serial.sendData(VARIO_VSI_DATA_ID, vsiData);
-        }
-        else
-        {
-          serial.sendEmpty(VARIO_VSI_DATA_ID);
-        }
+        sendSingleData(serial, VARIO_VSI_DATA_ID, dataId, vsiData, VARIO_VSI_DATA_PERIOD, vsiTime, now);
         break;
     }
     sensorDataIdx++;
     if(sensorDataIdx >= VARIO_DATA_COUNT) sensorDataIdx = 0;
   }
+  return dataId;
 }
 
 uint16_t FrSkySportSensorVario::decodeData(uint8_t id, uint16_t appId, uint32_t data)

@@ -1,5 +1,11 @@
-#include "IRremote.h"
+#include <Arduino.h>
 
+//#define DEBUG // Activate this for lots of lovely debug output from this decoder.
+#include "IRremoteInt.h" // evaluates the DEBUG for DEBUG_PRINT
+
+/** \addtogroup Decoder Decoders and encoders for different protocols
+ * @{
+ */
 //==============================================================================
 //               W   W  H   H  Y   Y N   N TTTTT EEEEE  RRRRR
 //               W   W  H   H   Y Y  NN  N   T   E      R   R
@@ -22,8 +28,6 @@ void IRsend::sendWhynter(unsigned long data, int nbits) {
     // Set IR carrier frequency
     enableIROut(38);
 
-    noInterrupts();
-
     // Start
     mark(WHYNTER_BIT_MARK);
     space(WHYNTER_ZERO_SPACE);
@@ -33,13 +37,10 @@ void IRsend::sendWhynter(unsigned long data, int nbits) {
     space(WHYNTER_HEADER_SPACE);
 
     // Data + stop bit
-    sendPulseDistanceWidthData(WHYNTER_BIT_MARK, WHYNTER_ONE_SPACE, WHYNTER_BIT_MARK, WHYNTER_ZERO_SPACE, data, nbits, MSB_FIRST,
+    sendPulseDistanceWidthData(WHYNTER_BIT_MARK, WHYNTER_ONE_SPACE, WHYNTER_BIT_MARK, WHYNTER_ZERO_SPACE, data, nbits, PROTOCOL_IS_MSB_FIRST,
     SEND_STOP_BIT);
-
-    interrupts();
 }
 
-#if DECODE_WHYNTER
 //+=============================================================================
 bool IRrecv::decodeWhynter() {
 
@@ -49,20 +50,20 @@ bool IRrecv::decodeWhynter() {
     }
 
     // Sequence begins with a bit mark and a zero space
-    if (!MATCH_MARK(decodedIRData.rawDataPtr->rawbuf[1], WHYNTER_BIT_MARK)
-            || !MATCH_SPACE(decodedIRData.rawDataPtr->rawbuf[2], WHYNTER_HEADER_SPACE)) {
-        DBG_PRINT(F("Whynter: "));
-        DBG_PRINTLN(F("Header mark or space length is wrong"));
+    if (!matchMark(decodedIRData.rawDataPtr->rawbuf[1], WHYNTER_BIT_MARK)
+            || !matchSpace(decodedIRData.rawDataPtr->rawbuf[2], WHYNTER_HEADER_SPACE)) {
+        DEBUG_PRINT(F("Whynter: "));
+        DEBUG_PRINTLN(F("Header mark or space length is wrong"));
         return false;
     }
 
-    if (!decodePulseDistanceData(WHYNTER_BITS, 3, WHYNTER_BIT_MARK, WHYNTER_ONE_SPACE, WHYNTER_ZERO_SPACE, MSB_FIRST)) {
+    if (!decodePulseDistanceData(WHYNTER_BITS, 3, WHYNTER_BIT_MARK, WHYNTER_ONE_SPACE, WHYNTER_ZERO_SPACE, PROTOCOL_IS_MSB_FIRST)) {
         return false;
     }
 
     // trailing mark / stop bit
-    if (!MATCH_MARK(decodedIRData.rawDataPtr->rawbuf[3 + (2 * WHYNTER_BITS)], WHYNTER_BIT_MARK)) {
-        DBG_PRINTLN(F("Stop bit mark length is wrong"));
+    if (!matchMark(decodedIRData.rawDataPtr->rawbuf[3 + (2 * WHYNTER_BITS)], WHYNTER_BIT_MARK)) {
+        DEBUG_PRINTLN(F("Stop bit mark length is wrong"));
         return false;
     }
 
@@ -72,4 +73,5 @@ bool IRrecv::decodeWhynter() {
     decodedIRData.protocol = WHYNTER;
     return true;
 }
-#endif // DECODE_WHYNTER
+
+/** @}*/

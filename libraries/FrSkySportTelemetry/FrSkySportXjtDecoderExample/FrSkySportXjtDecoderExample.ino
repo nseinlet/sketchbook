@@ -1,9 +1,9 @@
 /*
   FrSky S-Port Telemetry Decoder library example for the XJT decoder class (old hub telemetry and basic RSSI/ADC1/ADC2/RxBatt/SWR data)
-  (c) Pawelsky 20160818
+  (c) Pawelsky 20210108
   Not for commercial use
   
-  Note that you need Teensy 3.x or 328P based (e.g. Pro Mini, Nano, Uno) board and FrSkySportDecoder library for this example to work
+  Note that you need Teensy LC/3.x/4.x, ESP8266, ATmega2560 (Mega) or ATmega328P based (e.g. Pro Mini, Nano, Uno) board and FrSkySportDecoder library for this example to work
 */
 
 // Uncomment the #define below to enable internal polling of data.
@@ -14,13 +14,14 @@
 #include "FrSkySportSensorXjt.h"
 #include "FrSkySportSingleWireSerial.h"
 #include "FrSkySportDecoder.h"
-#if !defined(__MK20DX128__) && !defined(__MK20DX256__)
+#if !defined(TEENSY_HW)
 #include "SoftwareSerial.h"
 #endif
 
 FrSkySportSensorXjt xjt;            // Create XJT sensor with default ID
 #ifdef POLLING_ENABLED
-  FrSkySportDecoder decoder(true);  // Create decoder object with polling
+  #include "FrSkySportPollingDynamic.h"
+  FrSkySportDecoder decoder(new FrSkySportPollingDynamic()); // Create telemetry object with dynamic polling
 #else
   FrSkySportDecoder decoder;        // Create decoder object without polling
 #endif
@@ -32,7 +33,7 @@ uint16_t decodeResult;
 void setup()
 {
   // Configure the decoder serial port and sensors (remember to use & to specify a pointer to sensor)
-#if defined(__MK20DX128__) || defined(__MK20DX256__)
+#if defined(TEENSY_HW)
   decoder.begin(FrSkySportSingleWireSerial::SERIAL_3, &xjt);
 #else
   decoder.begin(FrSkySportSingleWireSerial::SOFT_SERIAL_PIN_12, &xjt);
