@@ -39,7 +39,7 @@ int endpointy;
 Receiver rec;
 LightManager lm;
 
-Servo myservo[8];
+Servo myservo[10];
 
 #define Logo_challenger_small_width 63
 #define Logo_challenger_small_height 16
@@ -58,7 +58,6 @@ static unsigned char Logo_challenger_small_bits[] U8G_PROGMEM = {
 
 void setup(void) {
   //Serial.begin(115200);
-  pinMode(LED_BUILTIN, OUTPUT);
   displayTime = 0;
   nbrdisp = 0;
   
@@ -71,9 +70,14 @@ void setup(void) {
   myservo[3].attach(12);
   myservo[4].attach(13);
   myservo[5].attach(A0);
-  //Sound unit
   myservo[6].attach(A1);
   myservo[7].attach(A2);
+  myservo[8].attach(A3);
+
+  //Optional sound
+  //pinMode(1, OUTPUT);
+  //myservo[9].attach(1);
+  
 }
 
 void drawScreen1() {
@@ -169,14 +173,23 @@ void loop()
 { 
   delay(50);
   if (rec.read()==1){
-    myservo[0].write(rec.channels[8].angle);
-    myservo[1].write(rec.channels[9].angle);
-    myservo[2].write(rec.channels[10].angle);
-    myservo[3].write(rec.channels[12].angle);
-    myservo[4].write(rec.channels[13].angle);
-    myservo[5].write(rec.channels[14].angle);
-    myservo[6].write(rec.channels[1].angle);
-    myservo[7].write(rec.channels[15].angle);
+    myservo[0].write(rec.channels[6].angle);
+    myservo[1].write(rec.channels[7].angle);
+    myservo[2].write(rec.channels[8].angle);
+    myservo[3].write(rec.channels[9].angle);
+    myservo[4].write(rec.channels[10].angle);
+    myservo[5].write(rec.channels[11].angle);
+    myservo[6].write(rec.channels[13].angle);
+    myservo[7].write(rec.channels[14].angle);
+    myservo[8].write(rec.channels[15].angle);
+    //sound extra
+//    if (rec.channels[0].angle>100 or rec.channels[0].angle<80 or rec.channels[3].angle>100 or rec.channels[3].angle<80){
+//      //Any lift is working -> Hydraulic sound
+//      myservo[9].write(45);
+//    } else {
+//      myservo[9].write(90);
+//    };
+    
   };
 
   //Manage ligths
