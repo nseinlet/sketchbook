@@ -1,5 +1,4 @@
 
-
 /*Copyright (C) 2015  Seinlet Nicolas
 
  This program is free software: you can redistribute it and/or modify
@@ -15,167 +14,244 @@
  You should have received a copy of the GNU General Public License
  along with this program.  If not, see <http://www.gnu.org/licenses/>*/
 
-#include <Servo.h> 
-#include <Arduino_LSM9DS1.h>
-#include <MadgwickAHRS.h>
+#include "Wire.h"
+#include <MPU6050_light.h>
+#define EI_ARDUINO_INTERRUPTED_PIN
+#include <EnableInterrupt.h>
+#include <Servo.h>
 
+#define SerialDebug false
+#define PWM_FIRST_PIN 9
+#define PWM_NUMBER_OF_PINS 4
+#define PWM_AVG_VALUES 50
+#define PWM_MIN 800
+#define PWM_MAX 2200
 
-// initialize a Madgwick filter:
-Madgwick filter;
-// sensor's sample rate is fixed at 104 Hz:
-const float sensorRate = 104.00;
+#define POS_INPUT 0
+#define RIGHT_POS 1
+#define LEFT_POS 2
+#define WHEEL_POS 3
 
+#define GY512_AVG_VALUES 10
+#define FRONT_REAR_ANGLE 1
+#define RIGHT_LEFT_ANGLE 2
+#define MIN_ADJUSTMENT_ANGLE 3
+#define ADJUSTMENT_SPEED 20
+#define MIN_WHEEL_ADJUSTMENT 3
+#define WHEEL_SERVO_MIN 45
+#define WHEEL_SERVO_MAX 135
+#define MOTOR_SPEED_MIN 45
+#define MOTOR_SPEED_MAX 135
 
-struct sig {
-  volatile boolean isOn;
-  volatile unsigned long start;
-  volatile int len;
-};
-typedef struct sig Sig;
-Sig signals[13] = {0};
+#define WHEEL_PIN 5
+#define WHEEL_PIN_INVERTED true
+#define MOTOR_PIN 6
+#define MOTOR_PIN_INVERTED true
 
-struct serv {
-  volatile int angleactu;
-  volatile int anglerequis;
-  volatile int pinIn;
-  volatile boolean invert;
-  volatile unsigned long tempo;
-  volatile unsigned long lastMove;
-  Servo outservo;
-};
-typedef struct serv Serv;
-Serv sorties[13] = {0};
+MPU6050 mpu(Wire);
+float Angles[3], AngHist[3][GY512_AVG_VALUES];
+double sumAngle;
+int AngLastInput;
+float requiredLeftAngle, requiredRightAngle;
+
+volatile unsigned long pwm_prev_time[PWM_NUMBER_OF_PINS];
+volatile int pwm_last_input[PWM_NUMBER_OF_PINS];
+int pwm_timings[PWM_NUMBER_OF_PINS][PWM_AVG_VALUES];
+int pwm_inputs[PWM_NUMBER_OF_PINS];
+
+int wheel_position, motor_speed;
+Servo wheel_servo, motor_controller;
+
+void gy_512_setup() {
+  Wire.begin();
+
+  byte status = mpu.begin();
+  if (SerialDebug) {
+    Serial.print(F("MPU6050 status: "));
+    Serial.println(status);
+  };
+  AngLastInput = 0;
+  if (SerialDebug) {Serial.println(F("While calculating the offsets value, do not move the MPU6050 sensor"));};
+  delay(1000);
+  mpu.calcOffsets();
+  if (SerialDebug) {Serial.println("Done!\n");};
+}
+
+void gy_512_read() {
+  mpu.update();
+  AngHist[0][AngLastInput] = mpu.getAngleX();
+  AngHist[1][AngLastInput] = mpu.getAngleY();
+  AngHist[2][AngLastInput] = mpu.getAngleZ();
+
+  if (SerialDebug) {
+      Serial.print("aX = "); Serial.print((AngHist[0][AngLastInput]));Serial.print("90\xc2\xb0");
+      Serial.print("\t aY = "); Serial.print((AngHist[1][AngLastInput]));Serial.print("90\xc2\xb0");
+      Serial.print("\t aZ = "); Serial.print((AngHist[2][AngLastInput]));Serial.print("90\xc2\xb0");
+      Serial.println();
+  };
+  AngLastInput++;
+  if (AngLastInput>=GY512_AVG_VALUES) {
+    AngLastInput = 0;
+  }
+
+  for (int ang=0;ang<3;ang++){
+      sumAngle = 0;
+      for (int i=0;i<GY512_AVG_VALUES;i++) {
+        sumAngle += AngHist[ang][i];
+      }
+      Angles[ang] = sumAngle/GY512_AVG_VALUES;
+  }
+}
+
+void compute_required_angles(){
+  requiredLeftAngle = 180 - map(pwm_inputs[LEFT_POS], PWM_MIN, PWM_MAX, -20, 20);
+  requiredRightAngle = map(pwm_inputs[RIGHT_POS], PWM_MIN, PWM_MAX, -20, 20);
+}
+
+void pwm_changing()
+{
+  uint8_t pwm_latest_interrupted_pin=arduinoInterruptedPin;
+  int pwm_arrayid = pwm_latest_interrupted_pin-PWM_FIRST_PIN;
+
+  if (arduinoPinState != 0) {
+      // HIGH
+      pwm_prev_time[pwm_arrayid] = micros();
+  } else {
+      // LOW
+      pwm_timings[pwm_arrayid][pwm_last_input[pwm_arrayid]] = int(micros() - pwm_prev_time[pwm_arrayid]);
+      pwm_last_input[pwm_arrayid]++;
+      if (pwm_last_input[pwm_arrayid]>=PWM_AVG_VALUES) {
+          pwm_last_input[pwm_arrayid]=0;
+      };
+  }
+}
+
+void pwm_setup() {
+  for (int pin=PWM_FIRST_PIN; pin<PWM_FIRST_PIN + PWM_NUMBER_OF_PINS; pin++){
+    pinMode(pin, INPUT_PULLUP);
+    pwm_last_input[pin-PWM_FIRST_PIN]=0;
+    for (int i=0; i<PWM_AVG_VALUES; i++){
+      pwm_timings[pin-PWM_FIRST_PIN][i]=1500;
+    }
+    enableInterrupt(pin, pwm_changing, CHANGE);
+  }
+}
+
+void pwm_compute_inputs() {
+  long sum_val;
+  for (int pin=PWM_FIRST_PIN; pin<PWM_FIRST_PIN + PWM_NUMBER_OF_PINS; pin++){
+      sum_val = 0;
+      for (int i=0; i<PWM_AVG_VALUES; i++){
+        sum_val += pwm_timings[pin - PWM_FIRST_PIN][i];
+      }
+      pwm_inputs[pin-PWM_FIRST_PIN] = sum_val / PWM_AVG_VALUES;
+      if (SerialDebug) {
+        Serial.print(pwm_inputs[pin-PWM_FIRST_PIN]);
+        Serial.print(" | ");
+      }
+  }
+  if (SerialDebug) {
+    Serial.println("");
+  }
+}
 
 void setup() {
-  Serial.begin(115200);
+  if (SerialDebug) {Serial.begin(115200);};
   
-  if (!IMU.begin()) {
-     Serial.println("Failed to initialize IMU!");
+  wheel_servo.attach(WHEEL_PIN);
+  motor_controller.attach(MOTOR_PIN);
+  motor_controller.write(90);
+  
+  gy_512_setup();
+  pwm_setup();
+}
+
+int compute_motor_speed () {
+  if (SerialDebug) {
+    Serial.print(pwm_inputs[POS_INPUT]);
+    Serial.print(" | ");
+    Serial.print(requiredRightAngle);
+    Serial.print(" | ");
+    Serial.print(Angles[RIGHT_LEFT_ANGLE]);
+    Serial.print(" | ");
+    Serial.print(requiredLeftAngle);
+    Serial.println("");
   }
-  Serial.print("Accelerometer sample rate = ");
-Serial.print(IMU.accelerationSampleRate());
-Serial.println(" Hz");
-Serial.println();
-Serial.println("Acceleration in G's");
-Serial.println("XtYtZ");
-
-filter.begin(sensorRate);
-
-}
-
-//Read the signal
-void calcInput(){
-//  int pin = PCintPort::arduinoPin;
-//  if(digitalRead(pin) == HIGH){
-//    signals[pin].start = micros();
-//  }else{
-//    if(signals[pin].start && (signals[pin].isOn == false)){
-//      signals[pin].len = (int)(micros() - signals[pin].start);
-//      signals[pin].start = 0;
-//      signals[pin].isOn = true;
-//    } 
-//  }  
-}
-
-int PWM2deg(int pwmsig)
-{
-  //Convertir les signaux PWM en angles
-  //1100/1500/1900
-  //->
-  //0/90/180
-  float tmp = pwmsig-1100.0;
-  if (tmp<0){
-    tmp=0;
-  };
-  if (tmp>800){
-    tmp=800;
-  };
-  int res = (tmp/800.0)*180.0;
-  return res;
+  if (pwm_inputs[POS_INPUT]>1200 and pwm_inputs[POS_INPUT]<1800) {
+    //Set in no move position
+    if (SerialDebug) {Serial.println("No motor move!");};
+    return 90;
+  }
+  if (pwm_inputs[POS_INPUT]<1200 and Angles[RIGHT_LEFT_ANGLE] < requiredLeftAngle - 10) {
+    //Should be left oriented (angle ~= 180) , but is not
+    if (SerialDebug) {Serial.println("Move to left");};
+    return MOTOR_SPEED_MIN;
+  }
+  if (pwm_inputs[POS_INPUT]<1200 and abs(Angles[RIGHT_LEFT_ANGLE] - requiredLeftAngle) > MIN_ADJUSTMENT_ANGLE ) {
+    //Should be left oriented (angle ~= 180) , it is, but need adjustment
+    if (SerialDebug) {Serial.println("Adjust Left");};
+    if (Angles[RIGHT_LEFT_ANGLE] < requiredLeftAngle) {
+      return MOTOR_SPEED_MIN + ADJUSTMENT_SPEED;
+    } else {
+      return MOTOR_SPEED_MAX - ADJUSTMENT_SPEED;
+    }
+  }
+  if (pwm_inputs[POS_INPUT]>1800 and Angles[RIGHT_LEFT_ANGLE] > requiredRightAngle + 10) {
+    if (SerialDebug) {Serial.println("Move to right");};
+    //Should be right oriented (angle ~= 0) , but is not
+    return MOTOR_SPEED_MAX;
+  }
+  if (pwm_inputs[POS_INPUT]>1800 and abs(Angles[RIGHT_LEFT_ANGLE] - requiredRightAngle) > MIN_ADJUSTMENT_ANGLE ) {
+    //Should be right oriented (angle ~= 0) , it is, but need adjustment
+    if (SerialDebug) {Serial.println("Adjust right");};
+    if (Angles[RIGHT_LEFT_ANGLE] < requiredRightAngle) {
+      return MOTOR_SPEED_MIN + ADJUSTMENT_SPEED;
+    } else {
+      return MOTOR_SPEED_MAX - ADJUSTMENT_SPEED;
+    }
+  }
+  if (SerialDebug) {Serial.println("No motor move required");};
+  return 90;
 };
 
-int invertangle(int ang)
-{
-  return (ang-180)*(-1);
-};
+int compute_wheel_pos(){
+  if (Angles[RIGHT_LEFT_ANGLE]<45) {
+    if (abs(map(pwm_inputs[WHEEL_POS], PWM_MIN, PWM_MAX, WHEEL_SERVO_MAX, 90) - wheel_position) > MIN_WHEEL_ADJUSTMENT) {
+      return map(pwm_inputs[WHEEL_POS], PWM_MIN, PWM_MAX, WHEEL_SERVO_MAX, 90);
+    }
+    return wheel_position;
+  }
+  if (Angles[RIGHT_LEFT_ANGLE]>135) {
+    if (abs(map(pwm_inputs[WHEEL_POS], PWM_MIN, PWM_MAX, WHEEL_SERVO_MIN, 90) - wheel_position) > MIN_WHEEL_ADJUSTMENT) {
+      return map(pwm_inputs[WHEEL_POS], PWM_MIN, PWM_MAX, WHEEL_SERVO_MIN, 90);
+    }
+    return wheel_position;
+  }
+  return 90;
+}
 
 void loop(){
-  float xAcc, yAcc, zAcc;
-float xGyro, yGyro, zGyro;
-if (IMU.accelerationAvailable()) {
-  IMU.readAcceleration(xAcc, yAcc, zAcc);
- IMU.readGyroscope(xGyro, yGyro, zGyro);
-//Serial.print(x);
-//Serial.print(" / ");
-//Serial.print(y);
-//Serial.print(" / ");
-//Serial.print(z);
-//Serial.print(" ||| ");
-//Serial.print(xGyro);
-//Serial.print(" / ");
-//Serial.print(yGyro);
-//Serial.print(" / ");
-//Serial.print(zGyro);
-//Serial.println("");
-
-filter.updateIMU(xGyro, yGyro, zGyro, xAcc, yAcc, zAcc);
-float roll, pitch, heading;
- // print the heading, pitch and roll
-    roll = filter.getRoll();
-    pitch = filter.getPitch();
-    heading = filter.getYaw();
-    Serial.print("Orientation: ");
-    Serial.print(heading);
-    Serial.print(" ");
-    Serial.print(pitch);
-    Serial.print(" ");
-    Serial.println(roll);
-delay(10);
-}
-//  int anglemax;
-//  delay(10);
-//  //Check which values to set on output
-//  for(uint8_t pin=0; pin<13; pin++){
-//    if (sorties[pin].pinIn!=0){
-//      if (signals[sorties[pin].pinIn].isOn){
-//        sorties[pin].anglerequis = PWM2deg(signals[sorties[pin].pinIn].len);
-//        if (sorties[pin].invert){
-//          sorties[pin].anglerequis = invertangle(sorties[pin].anglerequis);
-//        };
-//        if (! sorties[pin].tempo){
-//          sorties[pin].angleactu = sorties[pin].anglerequis;
-//        };
-//      };
-//    };
-//  };
-//
-//  //Calc delayed outputs
-//  for(uint8_t pin=0; pin<13; pin++){
-//    if (sorties[pin].pinIn!=0){
-//      if (sorties[pin].tempo){
-//          anglemax = int(((180 * 5) / sorties[pin].tempo));
-//          if (anglemax>abs(sorties[pin].anglerequis-sorties[pin].angleactu)){
-//             anglemax = abs(sorties[pin].anglerequis-sorties[pin].angleactu);
-//          };
-//          if (sorties[pin].anglerequis>sorties[pin].angleactu){
-//            sorties[pin].angleactu = sorties[pin].angleactu + anglemax;
-//          } else {
-//            sorties[pin].angleactu = sorties[pin].angleactu - anglemax;
-//          };
-//      };
-//    };
-//  };
-//  
-//  //Set output values
-//  for(uint8_t pin=0; pin<13; pin++){
-//    if (sorties[pin].pinIn!=0){
-//        sorties[pin].outservo.write(sorties[pin].angleactu);
-//    };
-//  };
-//  //Reset values
-//  for(uint8_t pin=0; pin<13; pin++){
-//    if(signals[pin].isOn){
-//      signals[pin].isOn = false;
-//    }
-//  }
+  gy_512_read();
+  pwm_compute_inputs();
+  compute_required_angles();
+  
+  motor_speed = compute_motor_speed();
+  if (MOTOR_PIN_INVERTED) {
+    motor_controller.write(map(motor_speed, 0, 180, 180, 0));
+  } else {
+    motor_controller.write(motor_speed);
+  }
+  
+  wheel_position = compute_wheel_pos();
+  if (WHEEL_PIN_INVERTED) {
+    wheel_servo.write(map(wheel_position, 0, 180, 180, 0));
+  } else {
+    wheel_servo.write(wheel_position);  
+  }
+  
+  if (SerialDebug) {
+    Serial.print(motor_speed);
+    Serial.print(" |  ");
+    Serial.println(wheel_position);
+  }
 }
