@@ -2,7 +2,7 @@
  *  TinyIRReceiver.h
  *
  *
- *  Copyright (C) 2021  Armin Joachimsmeyer
+ *  Copyright (C) 2021-2022  Armin Joachimsmeyer
  *  armin.joachimsmeyer@gmail.com
  *
  *  This file is part of IRMP https://github.com/ukw100/IRMP.
@@ -19,52 +19,22 @@
  *  GNU General Public License for more details.
  *
  *  You should have received a copy of the GNU General Public License
- *  along with this program.  If not, see <http://www.gnu.org/licenses/gpl.html>.
+ *  along with this program. If not, see <http://www.gnu.org/licenses/gpl.html>.
  *
  */
 
-#ifndef TINY_IR_RECEIVER_H
-#define TINY_IR_RECEIVER_H
+#ifndef _TINY_IR_RECEIVER_H
+#define _TINY_IR_RECEIVER_H
 
 #include <Arduino.h>
+
+//#define DISABLE_NEC_SPECIAL_REPEAT_SUPPORT    // Activating this disables detection of full NEC frame repeats. Saves 40 bytes program memory.
 
 #include "LongUnion.h"
 
 /** \addtogroup TinyReceiver Minimal receiver for NEC protocol
  * @{
  */
-/*
- * Set input pin and output pin definitions etc.
- */
-#if !defined(IR_INPUT_PIN)
-#if defined(__AVR_ATtiny1616__)  || defined(__AVR_ATtiny3216__) || defined(__AVR_ATtiny3217__)
-#warning "IR_INPUT_PIN is not defined, we set it to 10"
-#define IR_INPUT_PIN    10
-#else
-#warning "IR_INPUT_PIN is not defined, we set it to 2"
-#define IR_INPUT_PIN    2
-#endif
-#endif
-
-#if !defined(IR_FEEDBACK_LED_PIN) && defined(LED_BUILTIN)
-#define IR_FEEDBACK_LED_PIN    LED_BUILTIN
-#endif
-
-//#define DO_NOT_USE_FEEDBACK_LED // Activate it if you do not want the feedback LED function. This saves 2 bytes code and 2 clock cycles per interrupt.
-
-#if (  defined(__AVR_ATtiny25__) || defined(__AVR_ATtiny45__) || defined(__AVR_ATtiny85__)) /* ATtinyX5 */ \
-|| defined(__AVR_ATtiny88__) /* MH-ET LIVE Tiny88 */ \
-|| defined(__AVR_ATmega1280__) || defined(__AVR_ATmega1281__) || defined(__AVR_ATmega2560__) || defined(__AVR_ATmega2561__) \
-|| defined(__AVR_ATmega16U4__) || defined(__AVR_ATmega32U4__) \
-|| defined(__AVR_ATmega8__) || defined(__AVR_ATmega48__) || defined(__AVR_ATmega48P__) || defined(__AVR_ATmega48PB__) || defined(__AVR_ATmega88P__) || defined(__AVR_ATmega88PB__) \
-|| defined(__AVR_ATmega168__) || defined(__AVR_ATmega168PA__) || defined(__AVR_ATmega168PB__) || defined(__AVR_ATmega328__) || defined(__AVR_ATmega328P__) || defined(__AVR_ATmega328PB__) \
-  /* ATmegas with ports 0,1,2 above and ATtiny167 only 2 pins below */ \
-|| ( (defined(__AVR_ATtiny87__) || defined(__AVR_ATtiny167__)) && ( (defined(ARDUINO_AVR_DIGISPARKPRO) && ((IR_INPUT_PIN == 3) || (IR_INPUT_PIN == 9))) /*ATtinyX7(digisparkpro) and pin 3 or 9 */\
-        || (! defined(ARDUINO_AVR_DIGISPARKPRO) && ((IR_INPUT_PIN == 3) || (IR_INPUT_PIN == 14)))) ) /*ATtinyX7(ATTinyCore) and pin 3 or 14 */
-// In this cases we have code provided for generating interrupt on pin change.
-#else
-#define TINY_RECEIVER_USE_ARDUINO_ATTACH_INTERRUPT // cannot use any static ISR vector here
-#endif
 
 /*
  * This function is called if a complete command was received and must be implemented by the including file (user code)
@@ -88,15 +58,17 @@ void handleReceivedTinyIRData(uint16_t aAddress, uint8_t aCommand, bool isRepeat
 #define NEC_ZERO_SPACE          NEC_UNIT
 
 #define NEC_REPEAT_HEADER_SPACE (4 * NEC_UNIT)  // 2250
-#define NEC_REPEAT_PERIOD       110000 // Not used yet - Commands are repeated every 110 ms (measured from start to start) for as long as the key on the remote control is held down.
+#define NEC_REPEAT_PERIOD       110000 // Commands are repeated every 110 ms (measured from start to start) for as long as the key on the remote control is held down.
+#define NEC_MINIMAL_DURATION    49900 // NEC_HEADER_MARK + NEC_HEADER_SPACE + 32 * 2 * NEC_UNIT + NEC_UNIT // 2.5 because we assume more zeros than ones
+#define NEC_MAXIMUM_REPEAT_SPACE (NEC_REPEAT_PERIOD - NEC_MINIMAL_DURATION + 5) // 65 ms
 
 /*
  * Macros for comparing timing values
  */
 #define lowerValue25Percent(aDuration)   (aDuration - (aDuration / 4))
 #define upperValue25Percent(aDuration)   (aDuration + (aDuration / 4))
-#define lowerValue(aDuration)   (aDuration - (aDuration / 2))
-#define upperValue(aDuration)   (aDuration + (aDuration / 2))
+#define lowerValue50Percent(aDuration)   (aDuration / 2) // (aDuration - (aDuration / 2))
+#define upperValue50Percent(aDuration)   (aDuration + (aDuration / 2))
 
 /*
  * The states for the state machine
@@ -114,21 +86,36 @@ struct TinyIRReceiverStruct {
     /*
      * State machine
      */
-    uint32_t LastChangeMicros;      ///< microseconds of last Pin Change Interrupt.
-    uint8_t IRReceiverState;        ///< the state of the state machine.
-    uint8_t IRRawDataBitCounter;
+    uint32_t LastChangeMicros;      ///< Microseconds of last Pin Change Interrupt.
+    uint8_t IRReceiverState;        ///< The state of the state machine.
+    uint8_t IRRawDataBitCounter;    ///< How many bits are currently contained in raw data.
     /*
      * Data
      */
-    uint32_t IRRawDataMask;
-    LongUnion IRRawData;
-    bool IRRepeatDetected;
+    uint32_t IRRawDataMask;         ///< The corresponding bit mask for IRRawDataBitCounter.
+    LongUnion IRRawData;            ///< The current raw data. LongUnion helps with decoding of address and command.
+    bool IRRepeatFrameDetected;     ///< A "standard" NEC repeat frame was detected.
+#if !defined(DISABLE_NEC_SPECIAL_REPEAT_SUPPORT)
+    bool IRRepeatDistanceDetected;  ///< A small gap between two frames is detected -> assume a "non standard" repeat.
+#endif
 };
 
-void initPCIInterruptForTinyReceiver();
+/**
+ * Can be used by the callback to transfer received data to main loop for further processing.
+ * E.g. with volatile struct TinyIRReceiverCallbackDataStruct sCallbackData;
+ */
+struct TinyIRReceiverCallbackDataStruct {
+    uint16_t Address;
+    uint8_t Command;
+    bool isRepeat;
+    bool justWritten;   ///< Is set true if new data is available. Used by the main loop, to avoid multiple evaluations of the same IR frame.
+};
+
+bool initPCIInterruptForTinyReceiver();
+bool enablePCIInterruptForTinyReceiver();
+void disablePCIInterruptForTinyReceiver();
+bool isTinyReceiverIdle();
 
 /** @}*/
 
-#endif // TINY_IR_RECEIVER_H
-
-#pragma once
+#endif // _TINY_IR_RECEIVER_H

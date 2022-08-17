@@ -32,57 +32,54 @@
 
 #include <Arduino.h>
 
-/*
- * Define macros for input and output pin etc.
- */
-#include "PinDefinitionsAndMore.h"
+// select only NEC and the universal decoder for pulse distance protocols
+#define DECODE_NEC          // Includes Apple and Onkyo
+#define DECODE_DISTANCE     // in case NEC is not received correctly
 
-//#define EXCLUDE_EXOTIC_PROTOCOLS // saves around 240 bytes program space if IrSender.write is used
+//#define EXCLUDE_UNIVERSAL_PROTOCOLS // Saves up to 1000 bytes program memory.
+//#define EXCLUDE_EXOTIC_PROTOCOLS
 //#define SEND_PWM_BY_TIMER
 //#define USE_NO_SEND_PWM
+//#define NO_LED_FEEDBACK_CODE // saves 500 bytes program memory
+//#define DEBUG // Activate this for lots of lovely debug output from the decoders.
 
-#include <IRremote.h>
+#include "PinDefinitionsAndMore.h" //Define macros for input and output pin etc.
+#include <IRremote.hpp>
 
 #define DELAY_AFTER_SEND 2000
 #define DELAY_AFTER_LOOP 5000
 
 void setup() {
-#if defined(IR_MEASURE_TIMING) && defined(IR_TIMING_TEST_PIN)
-    pinMode(IR_TIMING_TEST_PIN, OUTPUT);
-#endif
-
     Serial.begin(115200);
-#if defined(__AVR_ATmega32U4__) || defined(SERIAL_USB) || defined(SERIAL_PORT_USBVIRTUAL)  || defined(ARDUINO_attiny3217)
+#if defined(__AVR_ATmega32U4__) || defined(SERIAL_PORT_USBVIRTUAL) || defined(SERIAL_USB) /*stm32duino*/|| defined(USBCON) /*STM32_stm32*/|| defined(SERIALUSB_PID) || defined(ARDUINO_attiny3217)
     delay(4000); // To be able to connect Serial monitor after reset or power up and before first print out. Do not wait for an attached Serial Monitor!
 #endif
     // Just to know which program is running on my Arduino
     Serial.println(F("START " __FILE__ " from " __DATE__ "\r\nUsing library version " VERSION_IRREMOTE));
 
-    /*
-     * Start the receiver, enable feedback LED and (if not 3. parameter specified) take LED feedback pin from the internal boards definition
-     */
-    IrReceiver.begin(IR_RECEIVE_PIN);
-    IrSender.begin(IR_SEND_PIN, ENABLE_LED_FEEDBACK); // Specify send pin and enable feedback LED at default feedback LED pin
+    // Start the receiver and if not 3. parameter specified, take LED_BUILTIN pin from the internal boards definition as default feedback LED
+    IrReceiver.begin(IR_RECEIVE_PIN, ENABLE_LED_FEEDBACK);
 
-    Serial.print(F("Ready to receive IR signals at pin "));
-#if defined(ARDUINO_ARCH_STM32) || defined(ESP8266)
-    Serial.println(IR_RECEIVE_PIN_STRING);
+#if defined(IR_SEND_PIN)
+    IrSender.begin(); // Start with IR_SEND_PIN as send pin and enable feedback LED at default feedback LED pin
 #else
-    Serial.println(IR_RECEIVE_PIN);
-#endif
-    Serial.print(F("Ready to send IR signals at pin "));
-#if defined(ARDUINO_ARCH_STM32) || defined(ESP8266)
-    Serial.println(IR_SEND_PIN_STRING);
-#else
-    Serial.println(IR_SEND_PIN);
+    IrSender.begin(3, ENABLE_LED_FEEDBACK); // Specify send pin and enable feedback LED at default feedback LED pin
 #endif
 
-#if FLASHEND > 0x1FFF && !defined(SEND_PWM_BY_TIMER) && !defined(USE_NO_SEND_PWM) && !defined(ESP32) // for esp32 we use PWM generation by ledcWrite() for each pin
-    /*
-     * Print internal signal generation info
-     */
-    IrSender.enableIROut(38);
+    Serial.print(F("Ready to receive IR signals of protocols: "));
+    printActiveIRProtocols(&Serial);
+    Serial.println(F("at pin " STR(IR_RECEIVE_PIN)));
 
+    Serial.println(F("Ready to send IR signals at pin " STR(IR_SEND_PIN)));
+
+
+#if FLASHEND >= 0x3FFF  // For 16k flash or more, like ATtiny1604
+// For esp32 we use PWM generation by ledcWrite() for each pin.
+#  if !defined(SEND_PWM_BY_TIMER) && !defined(USE_NO_SEND_PWM) && !defined(ESP32)
+    /*
+     * Print internal software PWM generation info
+     */
+    IrSender.enableIROut(38); // Call it with 38 kHz to initialize the values printed below
     Serial.print(F("Send signal mark duration is "));
     Serial.print(IrSender.periodOnTimeMicros);
     Serial.print(F(" us, pulse correction is "));
@@ -90,6 +87,7 @@ void setup() {
     Serial.print(F(" ns, total period is "));
     Serial.print(IrSender.periodTimeMicros);
     Serial.println(F(" us"));
+#  endif
 
     // infos for receive
     Serial.print(RECORD_GAP_MICROS);
@@ -103,6 +101,9 @@ uint16_t sAddress = 0x0102;
 uint8_t sCommand = 0x34;
 uint8_t sRepeats = 1;
 
+/*
+ * Send NEC IR protocol
+ */
 void send_ir_data() {
     Serial.print(F("Sending: 0x"));
     Serial.print(sAddress, HEX);

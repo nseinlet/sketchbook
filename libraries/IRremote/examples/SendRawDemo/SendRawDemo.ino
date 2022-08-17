@@ -6,15 +6,15 @@
  * Remote Control button: LGTV Power On/Off.
  * Hex Value: 0x20DF10EF, 32 bits
  *
- * It is more efficient to use the sendNEC function to send NEC signals.
- * Use of sendRaw here, serves only as an example of using the function.
+ * If it is a supported protocol, it is more efficient to use the protocol send function
+ * (here sendNEC) to send the signal.
  *
  *  This file is part of Arduino-IRremote https://github.com/Arduino-IRremote/Arduino-IRremote.
  *
  ************************************************************************************
  * MIT License
  *
- * Copyright (c) 2020-2021 Armin Joachimsmeyer
+ * Copyright (c) 2020-2022 Armin Joachimsmeyer
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -37,36 +37,26 @@
  */
 #include <Arduino.h>
 
-/*
- * Define macros for input and output pin etc.
- */
-#include "PinDefinitionsAndMore.h"
-
-#include <IRremote.h>
-
-// On the Zero and others we switch explicitly to SerialUSB
-#if defined(ARDUINO_ARCH_SAMD)
-#define Serial SerialUSB
-#endif
+#include "PinDefinitionsAndMore.h" //Define macros for input and output pin etc.
+#include <IRremote.hpp>
 
 void setup() {
     pinMode(LED_BUILTIN, OUTPUT);
 
     Serial.begin(115200);
-#if defined(__AVR_ATmega32U4__) || defined(SERIAL_USB) || defined(SERIAL_PORT_USBVIRTUAL)  || defined(ARDUINO_attiny3217)
+#if defined(__AVR_ATmega32U4__) || defined(SERIAL_PORT_USBVIRTUAL) || defined(SERIAL_USB) /*stm32duino*/|| defined(USBCON) /*STM32_stm32*/|| defined(SERIALUSB_PID) || defined(ARDUINO_attiny3217)
     delay(4000); // To be able to connect Serial monitor after reset or power up and before first print out. Do not wait for an attached Serial Monitor!
 #endif
     // Just to know which program is running on my Arduino
     Serial.println(F("START " __FILE__ " from " __DATE__ "\r\nUsing library version " VERSION_IRREMOTE));
 
-    IrSender.begin(IR_SEND_PIN, ENABLE_LED_FEEDBACK); // Specify send pin and enable feedback LED at default feedback LED pin
-
-    Serial.print(F("Ready to send IR signals at pin "));
-#if defined(ARDUINO_ARCH_STM32) || defined(ESP8266)
-    Serial.println(IR_SEND_PIN_STRING);
+#if defined(IR_SEND_PIN)
+    IrSender.begin(); // Start with IR_SEND_PIN as send pin and enable feedback LED at default feedback LED pin
 #else
-    Serial.print(IR_SEND_PIN);
+    IrSender.begin(3, ENABLE_LED_FEEDBACK); // Specify send pin and enable feedback LED at default feedback LED pin
 #endif
+
+    Serial.println(F("Ready to send IR signals at pin "  STR(IR_SEND_PIN)));
 }
 
 /*
@@ -80,28 +70,29 @@ void setup() {
  * e.g. use 560 (instead of 11 * 50) for NEC or use 432 for Panasonic. But in this cases,
  * you better use the timing generation functions e.g. sendNEC() directly.
  */
-const uint8_t irSignalP[] PROGMEM
-= { 180, 90 /*Start bit*/, 11, 11, 11, 11, 11, 34, 11, 34/*0011 0xC of address LSB first*/, 11, 11, 11, 11, 11, 11, 11, 11/*0000*/,
-        11, 34, 11, 34, 11, 11, 11, 34/*1101 0xB*/, 11, 34, 11, 34, 11, 34, 11, 34/*1111*/, 11, 11, 11, 11, 11, 11, 11,
+const uint8_t rawDataP[] PROGMEM
+= { 180, 90 /*Start bit*/, 11, 11, 11, 11, 11, 34, 11, 34/*0011 0xC of 16 bit address LSB first*/, 11, 11, 11, 11, 11, 11, 11,
+        11/*0000*/, 11, 34, 11, 34, 11, 11, 11, 34/*1101 0xB*/, 11, 34, 11, 34, 11, 34, 11, 34/*1111*/, 11, 11, 11, 11, 11, 11, 11,
         34/*0001 0x08 of command LSB first*/, 11, 34, 11, 11, 11, 11, 11, 11/*1000 0x01*/, 11, 34, 11, 34, 11, 34, 11,
         11/*1110 Inverted 8 of command*/, 11, 11, 11, 34, 11, 34, 11, 34/*0111 inverted 1 of command*/, 11 /*stop bit*/};
 
 void loop() {
-    const uint8_t NEC_KHZ = 38; // 38kHz carrier frequency for the NEC protocol
 
 #if !(defined(__AVR_ATtiny25__) || defined(__AVR_ATtiny45__) || defined(__AVR_ATtiny85__))
     /*
      * Send hand crafted data from RAM
      * The values are NOT multiple of 50, but are taken from the NEC timing definitions
      */
-    Serial.println(F("Send NEC 8 bit address 0xFB04, 0x08 with exact timing (16 bit array format)"));
+    Serial.println(F("Send NEC 16 bit address=0xFB04 and command 0x08 with exact timing (16 bit array format)"));
     Serial.flush();
 
-    const uint16_t irSignal[] = { 9000, 4500, 560, 560, 560, 560, 560, 1690, 560, 560, 560, 560, 560, 560, 560, 560, 560, 560, 560,
-            1690, 560, 1690, 560, 560, 560, 1690, 560, 1690, 560, 1690, 560, 1690, 560, 1690, 560, 560, 560, 560, 560, 560, 560,
-            1690, 560, 560, 560, 560, 560, 560, 560, 560, 560, 1690, 560, 1690, 560, 1690, 560, 560, 560, 1690, 560, 1690, 560,
-            1690, 560, 1690, 560 }; // Using exact NEC timing
-    IrSender.sendRaw(irSignal, sizeof(irSignal) / sizeof(irSignal[0]), NEC_KHZ); // Note the approach used to automatically calculate the size of the array.
+    const uint16_t rawData[] = { 9000, 4500/*Start bit*/, 560, 560, 560, 560, 560, 1690, 560,
+            560/*0010 0x4 of 16 bit address LSB first*/, 560, 560, 560, 560, 560, 560, 560, 560/*0000*/, 560, 1690, 560, 1690, 560,
+            560, 560, 1690/*1101 0xB*/, 560, 1690, 560, 1690, 560, 1690, 560, 1690/*1111*/, 560, 560, 560, 560, 560, 560, 560,
+            1690/*0001 0x08 of command LSB first*/, 560, 560, 560, 560, 560, 560, 560, 560/*0000 0x00*/, 560, 1690, 560, 1690, 560,
+            1690, 560, 560/*1110 Inverted 8 of command*/, 560, 1690, 560, 1690, 560, 1690, 560, 1690/*1111 inverted 0 of command*/,
+            560 /*stop bit*/}; // Using exact NEC timing
+    IrSender.sendRaw(rawData, sizeof(rawData) / sizeof(rawData[0]), NEC_KHZ); // Note the approach used to automatically calculate the size of the array.
 
     delay(1000); // delay must be greater than 5 ms (RECORD_GAP_MICROS), otherwise the receiver sees it as one long signal
 #endif
@@ -110,9 +101,9 @@ void loop() {
      * Send byte data direct from FLASH
      * Note the approach used to automatically calculate the size of the array.
      */
-    Serial.println(F("Send NEC 16 bit address 0xFB0C, 0x18 with (50 us) tick resolution timing (8 bit array format) "));
+    Serial.println(F("Send NEC 16 bit address 0xFB0C and data 0x18 with (50 us) tick resolution timing (8 bit array format) "));
     Serial.flush();
-    IrSender.sendRaw_P(irSignalP, sizeof(irSignalP) / sizeof(irSignalP[0]), NEC_KHZ);
+    IrSender.sendRaw_P(rawDataP, sizeof(rawDataP) / sizeof(rawDataP[0]), NEC_KHZ);
 
     delay(1000); // delay must be greater than 5 ms (RECORD_GAP_MICROS), otherwise the receiver sees it as one long signal
 

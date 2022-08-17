@@ -13,15 +13,12 @@
  */
 #include <Arduino.h>
 
-/*
- * Define macros for input and output pin etc.
- */
-#include "PinDefinitionsAndMore.h"
-
 //#define SEND_PWM_BY_TIMER
 //#define USE_NO_SEND_PWM
+//#define NO_LED_FEEDBACK_CODE // saves 418 bytes program memory
 
-#include <IRremote.h>
+#include "PinDefinitionsAndMore.h" //Define macros for input and output pin etc.
+#include <IRremote.hpp>
 
 void setup() {
     pinMode(LED_BUILTIN, OUTPUT);
@@ -34,7 +31,7 @@ void setup() {
     /*
      * The IR library setup. That's all!
      */
-    IrSender.begin(IR_SEND_PIN, ENABLE_LED_FEEDBACK); // Specify send pin and enable feedback LED at default feedback LED pin
+    IrSender.begin(); // Start with IR_SEND_PIN as send pin and if NO_LED_FEEDBACK_CODE is NOT defined, enable feedback LED at default feedback LED pin
 
     Serial.print(F("Ready to send IR signals at pin "));
     Serial.println(IR_SEND_PIN);
