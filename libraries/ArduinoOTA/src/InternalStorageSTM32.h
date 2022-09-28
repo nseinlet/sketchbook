@@ -17,15 +17,15 @@
 
  */
 
-#ifndef _INTERNAL_STORAGE_RP2_H_INCLUDED
-#define _INTERNAL_STORAGE_RP2_H_INCLUDED
+#ifndef _INTERNAL_STORAGE_STM32_H_INCLUDED
+#define _INTERNAL_STORAGE_STM32_H_INCLUDED
 
 #include "OTAStorage.h"
 
 class InternalStorageSTM32Class : public OTAStorage {
 public:
 
-  InternalStorageSTM32Class();
+  InternalStorageSTM32Class(uint8_t sector);
 
   virtual int open(int length);
   virtual size_t write(uint8_t);
@@ -36,10 +36,11 @@ public:
 
 private:
   union {
-    uint64_t u64;
-    uint8_t u8[8];
+    uint32_t u32;
+    uint8_t u8[4];
   } addressData;
 
+  uint8_t sector; // for models with flash organized into sectors
   uint32_t maxSketchSize;
   uint32_t storageStartAddress;
   uint32_t pageAlignedLength;

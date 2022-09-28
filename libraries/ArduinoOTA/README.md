@@ -28,7 +28,7 @@ The library is a modification of the Arduino WiFi101OTA library.
 * Arduino SAMD boards like Zero, M0 or MKR and the new "Nano 33 IoT" 
 * nRF5 board supported by [nRF5 core](https://github.com/sandeepmistry/arduino-nRF5).
 * RP2040 boards with [Pico core](https://github.com/earlephilhower/arduino-pico)
-* STM32F1 boards with [STM32 core](https://github.com/stm32duino/Arduino_Core_STM32)
+* STM32F boards with [STM32 core](https://github.com/stm32duino/Arduino_Core_STM32)
 * boards supported by ESP8266 and ESP32 Arduino boards package  
 * any board with MCU with SD bootloader
 
@@ -82,9 +82,11 @@ In IDE select in Tools menu the "Arduino OTA (...)" programmer and use "Upload u
 
 ## OTA update as download
 
+*Note: Don't use this for esp8266 and esp32 Arduino. Use the ESP8266httpUpdate and the esp32 HTTPUpdate library for OTA update download for esp8266/esp32. Or use the Update object from esp8266 core ot the Update library directly.*
+
 The WiFi101OTA and ArduinoOTA libraries were created for upload from IDE. But in some scenarios as for example deployed sleeping battery powered devices it is better to have the update available for download by the device.
 
-In advanced section of examples you can find examples of sketch update over download from a http server. One example shows update over the InternalStorage object of the ArduinoOTA library. The example for update over SD card doesn't use this library at all.    
+In advanced section of examples you can find examples of sketch update over download from a http server. One example shows update over the InternalStorage object of the ArduinoOTA library. The example for update over SD card doesn't use this library at all.
 
 The Blynk library uses this library in its Blynk.Edgent examples to store and apply user's updated sketch downloaded from the Blynk IoT cloud storage.
 
@@ -194,8 +196,9 @@ Does the OTA uploaded sketch have ArduinoOTA?
     - [Seeed Wio Terminal](https://github.com/jandrassy/ArduinoOTA/pull/104) (with Blynk.Edgent)
 * RP2040
     - Raspberry Pi Pico
-* STM32F1
+* STM32
     - BluePill F103CB (128kB flash)
+    - BlackPill F411CE
 * nRF5
     - Seeed Arch Link (nRF51 board)
     - [nrf52832 board](https://github.com/jandrassy/ArduinoOTA/issues/1)

@@ -49,6 +49,10 @@ public:
   void onError(void (*fn)(int code, const char* msg)) {
     onErrorCallback = fn;
   }
+  
+  void onStart(void (*fn)(void)) {
+	  onStartCallback = fn;
+  }
 
 private:
   void sendHttpResponse(Client& client, int code, const char* status);
@@ -64,6 +68,7 @@ private:
   
   void (*beforeApplyCallback)(void);
   void (*onErrorCallback)(int code, const char*);
+  void (*onStartCallback)(void);
 };
 
 #endif

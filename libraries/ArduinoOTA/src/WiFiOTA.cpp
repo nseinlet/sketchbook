@@ -68,7 +68,8 @@ WiFiOTAClass::WiFiOTAClass() :
   localIp(0),
   _lastMdnsResponseTime(0),
   beforeApplyCallback(nullptr),
-  onErrorCallback(nullptr)
+  onErrorCallback(nullptr),
+  onStartCallback(nullptr)
 {
 }
 
@@ -230,6 +231,11 @@ void WiFiOTAClass::pollServer(Client& client)
 {
 
   if (client) {
+	
+    if (onStartCallback) {
+      onStartCallback();
+    }
+	  
     String request = client.readStringUntil('\n');
     request.trim();
 
@@ -247,7 +253,6 @@ void WiFiOTAClass::pollServer(Client& client)
         contentLength = header.toInt();
       } else if (header.startsWith("Authorization: ")) {
         header.remove(0, 15);
-
         authorization = header;
       }
     } while (header != "");

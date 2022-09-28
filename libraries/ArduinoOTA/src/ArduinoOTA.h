@@ -24,7 +24,7 @@
 #if FLASHEND >= 0xFFFF
 #include "InternalStorageAVR.h"
 #endif
-#elif defined(STM32F1xx)
+#elif defined(ARDUINO_ARCH_STM32)
 #include <InternalStorageSTM32.h>
 #elif defined(ARDUINO_ARCH_RP2040)
 #include <InternalStorageRP2.h>
@@ -90,7 +90,7 @@ public:
 
   void begin(IPAddress localIP, const char* name, const char* password, OTAStorage& storage) {
     ArduinoOTAClass<NetServer, NetClient>::begin(localIP, name, password, storage);
-#if defined(ESP8266) && !(defined(ethernet_h_) || defined(ethernet_h) || defined(UIPETHERNET_H))
+#if (defined(ESP8266) || defined(ARDUINO_RASPBERRY_PI_PICO_W)) && !(defined(ethernet_h_) || defined(ethernet_h) || defined(UIPETHERNET_H))
     mdnsSocket.beginMulticast(localIP, IPAddress(224, 0, 0, 251), 5353);
 #else
     mdnsSocket.beginMulticast(IPAddress(224, 0, 0, 251), 5353);
@@ -119,7 +119,7 @@ ArduinoOTAMdnsClass  <EthernetServer, EthernetClient, EthernetUDP>   ArduinoOTA;
 #elif defined(UIPETHERNET_H) // no UDP multicast implementation yet
 ArduinoOTAClass  <EthernetServer, EthernetClient>   ArduinoOTA;
 
-#elif defined(WiFiNINA_h) || defined(WIFI_H) || defined(ESP8266) || defined(ESP32) // NINA, WiFi101 and Espressif WiFi
+#elif defined(WiFiNINA_h) || defined(WIFI_H) || defined(ESP8266) || defined(ESP32) || defined(ARDUINO_RASPBERRY_PI_PICO_W) // NINA, WiFi101 and Espressif WiFi
 #ifdef NO_OTA_PORT
 ArduinoOTAClass  <WiFiServer, WiFiClient> ArduinoOTA;
 #else
