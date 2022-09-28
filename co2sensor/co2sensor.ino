@@ -7,6 +7,7 @@
 #include <Fonts/FreeSerif9pt7b.h>
 #include "consts.h"
 
+#define serialdebug true
 #define OLED_RESET 4
 Adafruit_SSD1306 display(OLED_RESET);
 
@@ -38,12 +39,12 @@ uint32_t delayMS;
 long lastReadingTime = 0;
 
 void setup () {
-  Serial.begin(115200);
+  if (serialdebug){Serial.begin(115200);};
 
   delayMS=30000;
 
   display.begin(SSD1306_SWITCHCAPVCC, 0x3C);
-   display.clearDisplay();
+  display.clearDisplay();
   display.setTextColor(WHITE);
   display.setTextSize(1);
   display.setCursor(5, 5);  
@@ -63,31 +64,35 @@ void setup () {
   
   pinMode(CO2_IN, INPUT);
   delay(100);
-  Serial.println("MHZ 19B");
-  Serial1.begin(9600);                               // (Uno example) device to MH-Z19 serial start   
+  if (serialdebug){
+    Serial.println("MHZ 19B");
+  };
+  Serial1.begin(9600);                               // (Uno example) device to MH-Z19 serial start       
   myMHZ19.begin(Serial1);                                // *Serial(Stream) refence must be passed to library begin(). 
 
   myMHZ19.autoCalibration();
   delay(3000);
-  Serial.print("Range: ");
-  Serial.println(myMHZ19.getRange());   
-  Serial.print("Background CO2: ");
-  Serial.println(myMHZ19.getBackgroundCO2());
-  Serial.print("Temperature Cal: ");
-  Serial.println(myMHZ19.getTempAdjustment());
-  Serial.print("ABC Status: "); myMHZ19.getABC() ? Serial.println("ON") :  Serial.println("OFF");
+  if (serialdebug){  
+    Serial.print("Range: ");
+    Serial.println(myMHZ19.getRange());   
+    Serial.print("Background CO2: ");
+    Serial.println(myMHZ19.getBackgroundCO2());
+    Serial.print("Temperature Cal: ");
+    Serial.println(myMHZ19.getTempAdjustment());
+    Serial.print("ABC Status: "); myMHZ19.getABC() ? Serial.println("ON") :  Serial.println("OFF");
+  }  
   char myVersion[4];          
   myMHZ19.getVersion(myVersion);
 
-  Serial.print("\nFirmware Version: ");
-  for(byte i = 0; i < 4; i++)
-  {
-    Serial.print(myVersion[i]);
-    if(i == 1)
-      Serial.print(".");    
+  if (serialdebug){
+    Serial.print("\nFirmware Version: ");
+    for(byte i = 0; i < 4; i++){
+      Serial.print(myVersion[i]);
+      if(i == 1)
+        Serial.print(".");    
+    }
+    Serial.println("");
   }
-   Serial.println("");
-
   //WiFi
   display.clearDisplay();
   display.setTextColor(WHITE);
@@ -96,39 +101,49 @@ void setup () {
   display.println("init WiFi");
   display.display();
   
-  Serial.print("WiFi101 shield: ");
-  if (WiFi.status() == WL_NO_SHIELD) {
-    Serial.println("NOT PRESENT");
-    return; // don't continue
-  }
-  Serial.println("DETECTED");
+  if (serialdebug){  
+    Serial.print("WiFi101 shield: ");
+    if (WiFi.status() == WL_NO_SHIELD) {
+      Serial.println("NOT PRESENT");
+      return; // don't continue
+    }
+    Serial.println("DETECTED");
+  }  
   // attempt to connect to Wifi network:
   while ( status != WL_CONNECTED) {
     digitalWrite(ledpin, LOW);
-    Serial.print("Attempting to connect to Network named: ");
-    Serial.println(ssid);                   // print the network name (SSID);
+    if (serialdebug){
+      Serial.print("Attempting to connect to Network named: ");
+      Serial.println(ssid);                   // print the network name (SSID);
+    }    
     digitalWrite(ledpin, HIGH);
     // Connect to WPA/WPA2 network. Change this line if using open or WEP network:
     status = WiFi.begin(ssid, pass);
     // wait 10 seconds for connection:
     delay(10000);
     // print the SSID of the network you're attached to:
-  Serial.print("SSID: ");
-  Serial.println(WiFi.SSID());
+    if (serialdebug){    
+      Serial.print("SSID: ");
+      Serial.println(WiFi.SSID());
+    };
  
-  // print your WiFi shield's IP address:
-  ip = WiFi.localIP();
-  Serial.print("IP Address: ");
-  Serial.println(ip);
+    // print your WiFi shield's IP address:
+    ip = WiFi.localIP();
+    if (serialdebug){    
+      Serial.print("IP Address: ");
+      Serial.println(ip);
+    };      
  
-  // print the received signal strength:
-  long rssi = WiFi.RSSI();
-  Serial.print("signal strength (RSSI):");
-  Serial.print(rssi);
-  Serial.println(" dBm");
-  // print where to go in a browser:
-  Serial.print("To see this page in action, open a browser to http://");
-  Serial.println(ip);
+    // print the received signal strength:
+    long rssi = WiFi.RSSI();
+    if (serialdebug){    
+      Serial.print("signal strength (RSSI):");
+      Serial.print(rssi);
+      Serial.println(" dBm");
+      // print where to go in a browser:
+      Serial.print("To see this page in action, open a browser to http://");
+      Serial.println(ip);
+    };    
   }
   
   server.begin(); 
@@ -203,29 +218,38 @@ void listenForWifiClients() {
 
 void show_info() {
   display.clearDisplay();
-    display.setTextColor(WHITE);
-    display.setTextSize(2);
-    display.setCursor(0, 0);  
-    display.println("CO");
-    display.setTextSize(1);
-    display.setCursor(24, 9);  
-    display.println("2");
-    display.setTextSize(2);
-    display.setCursor(52, 0);  
-    if (ppm>900) {display.setTextColor(BLACK, WHITE);};
-    display.println(ppm);
-    display.setTextSize(1);
-    display.setTextColor(WHITE);
-    display.setFont();
-    display.setCursor(0, 16);  
-    display.println("Temp.(C)");
-    display.setCursor(52, 16);  
-    display.println(tempreal);
-    display.setCursor(0, 25);
-    display.println("Humidite");
-    display.setCursor(52, 25);  
-    display.println(humidity);
-    display.display();
+  display.setTextColor(WHITE);
+  display.setTextSize(2);
+  display.setCursor(0, 0);  
+  display.println("CO");
+  display.setTextSize(1);
+  display.setCursor(24, 9);  
+  display.println("2");
+  display.setTextSize(2);
+  display.setCursor(52, 0);  
+  if (ppm>900) {display.setTextColor(BLACK, WHITE);};
+  display.println(ppm);
+  display.setTextSize(1);
+  display.setTextColor(WHITE);
+  display.setFont();
+  display.setCursor(0, 16);  
+  display.println("Temp.(C)");
+  display.setCursor(52, 16);  
+  display.println(tempreal);
+  display.setCursor(0, 25);
+  display.println("Humidite");
+  display.setCursor(52, 25);  
+  display.println(humidity);
+  display.display();
+
+  if (serialdebug){
+    Serial.print("Temp. (C) : ");
+    Serial.println(tempreal);
+    Serial.print("Humidite : ");
+    Serial.println(humidity);
+    Serial.print("CO2 : ");
+    Serial.println(ppm);    
+  };    
 };
 
 void check_wifi() {
@@ -245,15 +269,21 @@ void check_wifi() {
     WiFi.begin(ssid, pass); 
     delay(1000);
     status = WiFi.status();
-    Serial.println(status);
+    if (serialdebug){    
+      Serial.println(status);
+    };      
     while((status != WL_CONNECTED) && (retries<2))
     {
       WiFi.begin(ssid, pass); 
       retries++;
-      Serial.println("\n Trying to Reconnect to WiFi Network ");
+      if (serialdebug){
+        Serial.println("\n Trying to Reconnect to WiFi Network ");
+      };      
       delay(2000);
       status = WiFi.status();
-      Serial.println(status);
+      if (serialdebug){
+        Serial.println(status);
+      };
       server.begin(); 
     }
     }
