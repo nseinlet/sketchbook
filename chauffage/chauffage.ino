@@ -4,6 +4,7 @@
 #include <Adafruit_Sensor.h>
 #include <OneWire.h>
 #include <DallasTemperature.h>
+#include <WiFiClient.h>
 
 //Cheap sensor T°/hmidity
 #define DHT_PIN 7
@@ -72,7 +73,7 @@ void loop() {
 
 void listenForEthernetClients() {
   // listen for incoming clients
-  EthernetClient client = server.available();
+  WiFiClient client = server.available(); 
   if (client) {
     // an http request ends with a blank line
     bool currentLineIsBlank = true;

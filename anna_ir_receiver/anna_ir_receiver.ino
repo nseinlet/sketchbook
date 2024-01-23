@@ -15,6 +15,7 @@ Servo myservo[4];
 int servo_ins[4];
 int servo_trims[4];
 int servo_vals[4];
+int servo_old_vals[4];
 BLECharacteristic readingchan;
 uint32_t val;
 
@@ -41,6 +42,11 @@ void setup() {
   Serial.println("BLE Central - Peripheral Explorer");
 
   BLE.scanForName(pwm_peripheral_name);
+  val = 512;
+  servo_old_vals[0] = 90;
+  servo_old_vals[1] = 90;
+  servo_old_vals[2] = 90;
+  servo_old_vals[3] = 90;
 }
 
 void loop() {
@@ -108,7 +114,10 @@ void move_servos(){
       //Max angle is a map between pot values (0->1023) and servo angle values in a given direction (0->90) 
       servo_max_angle=map(pot, 0, 1023, 0, 90);
       servo_vals[i]=map(val+pot_trim-512, 0, 1023, servo_max_angle, 180-servo_max_angle);
-      myservo[i].write(servo_vals[i]); 
+      if (abs(servo_old_vals[i]-servo_vals[i])>4){
+        myservo[i].write(servo_vals[i]);
+        servo_old_vals[i]=servo_vals[i]; 
+      };
   }
   
   Serial.print(val);
