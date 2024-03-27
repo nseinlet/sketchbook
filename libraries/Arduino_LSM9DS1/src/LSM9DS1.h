@@ -34,7 +34,7 @@ class LSM9DS1Class {
     void setOneShotMode();
 
     // Accelerometer
-    virtual int readAcceleration(float& x, float& y, float& z); // Results are in G (earth gravity).
+    virtual int readAcceleration(float& x, float& y, float& z); // Results are in g (earth gravity).
     virtual int accelerationAvailable(); // Number of samples in the FIFO.
     virtual float accelerationSampleRate(); // Sampling rate of the sensor.
 
@@ -58,4 +58,6 @@ class LSM9DS1Class {
     TwoWire* _wire;
 };
 
-extern LSM9DS1Class IMU;
+extern LSM9DS1Class IMU_LSM9DS1;
+#undef IMU
+#define IMU IMU_LSM9DS1

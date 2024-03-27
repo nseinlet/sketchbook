@@ -64,7 +64,6 @@ void loop() {
   if (millis() - lastReadingTime > delayMS) {
       readCheapSensor();
       readSensorsValues();
-      readPreasureGauge();
   
       lastReadingTime = millis();
   };
@@ -138,10 +137,11 @@ void readCheapSensor()
   dht.temperature().getEvent(&event);
   if (not (isnan(event.temperature))) 
     t=event.temperature;
-
+  Serial.println(t);
   dht.humidity().getEvent(&event);
   if (not (isnan(event.relative_humidity)))
     h=event.relative_humidity;
+  Serial.println(h);
 }
 
 void readSensorsValues()
@@ -156,6 +156,9 @@ void readSensorsValues()
     sensors.getAddress(Thermometer, i);
     temperatures[i] = sensors.getTempC(Thermometer);
     temperaturesAddr[i] = sensorAddressToString(Thermometer);
+    Serial.print(temperaturesAddr[i]);
+    Serial.print(": ");
+    Serial.println(temperatures[i]);
   }
   
 }

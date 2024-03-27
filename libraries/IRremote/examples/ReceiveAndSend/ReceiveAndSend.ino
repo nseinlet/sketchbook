@@ -44,23 +44,26 @@
  */
 #include <Arduino.h>
 
+#include "PinDefinitionsAndMore.h" // Define macros for input and output pin etc.
+
 /*
  * Specify which protocol(s) should be used for decoding.
- * If no protocol is defined, all protocols are active.
+ * If no protocol is defined, all protocols (except Bang&Olufsen) are active.
  * This must be done before the #include <IRremote.hpp>
  */
 //#define DECODE_LG
 //#define DECODE_NEC
-//#define DECODE_DISTANCE
+//#define DECODE_DISTANCE_WIDTH // Universal decoder for pulse distance width protocols
 // etc. see IRremote.hpp
 //
-
-#if RAMEND <= 0x4FF || (defined(RAMSIZE) && RAMSIZE < 0x4FF)
+#if !defined(RAW_BUFFER_LENGTH)
+#  if RAMEND <= 0x4FF || RAMSIZE < 0x4FF
 #define RAW_BUFFER_LENGTH  120
-#elif RAMEND <= 0xAFF || (defined(RAMSIZE) && RAMSIZE < 0xAFF) // 0xAFF for LEONARDO
-#define RAW_BUFFER_LENGTH  500 // 600 is too much here, because we have additional uint8_t rawCode[RAW_BUFFER_LENGTH];
-#else
+#  elif RAMEND <= 0xAFF || RAMSIZE < 0xAFF // 0xAFF for LEONARDO
+#define RAW_BUFFER_LENGTH  400 // 600 is too much here, because we have additional uint8_t rawCode[RAW_BUFFER_LENGTH];
+#  else
 #define RAW_BUFFER_LENGTH  750
+#  endif
 #endif
 
 //#define NO_LED_FEEDBACK_CODE // saves 92 bytes program memory
@@ -68,14 +71,13 @@
 //#define EXCLUDE_EXOTIC_PROTOCOLS // saves around 650 bytes program memory if all other protocols are active
 
 // MARK_EXCESS_MICROS is subtracted from all marks and added to all spaces before decoding,
-// to compensate for the signal forming of different IR receiver modules.
-//#define MARK_EXCESS_MICROS    20 // 20 is recommended for the cheap VS1838 modules
+// to compensate for the signal forming of different IR receiver modules. See also IRremote.hpp line 142.
+#define MARK_EXCESS_MICROS    20    // Adapt it to your IR receiver module. 20 is recommended for the cheap VS1838 modules.
 
 //#define RECORD_GAP_MICROS 12000 // Activate it for some LG air conditioner protocols
 
 //#define DEBUG // Activate this for lots of lovely debug output from the decoders.
 
-#include "PinDefinitionsAndMore.h" // Define macros for input and output pin etc.
 #include <IRremote.hpp>
 
 int SEND_BUTTON_PIN = APPLICATION_PIN;
@@ -108,17 +110,20 @@ void setup() {
     // Start the receiver and if not 3. parameter specified, take LED_BUILTIN pin from the internal boards definition as default feedback LED
     IrReceiver.begin(IR_RECEIVE_PIN, ENABLE_LED_FEEDBACK);
 
-    IrSender.begin(IR_SEND_PIN, ENABLE_LED_FEEDBACK); // Specify send pin and enable feedback LED at default feedback LED pin
-
-    pinMode(STATUS_PIN, OUTPUT);
-
     Serial.print(F("Ready to receive IR signals of protocols: "));
     printActiveIRProtocols(&Serial);
     Serial.println(F("at pin " STR(IR_RECEIVE_PIN)));
 
+#if defined(IR_SEND_PIN)
+    IrSender.begin(); // Start with IR_SEND_PIN as send pin and enable feedback LED at default feedback LED pin
     Serial.print(F("Ready to send IR signals at pin " STR(IR_SEND_PIN) " on press of button at pin "));
+#else
+    IrSender.begin(3, ENABLE_LED_FEEDBACK, USE_DEFAULT_FEEDBACK_LED_PIN); // Specify send pin and enable feedback LED at default feedback LED pin
+    Serial.print(F("Ready to send IR signals at pin 3 on press of button at pin "));
+#endif
     Serial.println(SEND_BUTTON_PIN);
 
+    pinMode(STATUS_PIN, OUTPUT);
 }
 
 void loop() {

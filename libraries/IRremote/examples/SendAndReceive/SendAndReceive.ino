@@ -34,7 +34,7 @@
 
 // select only NEC and the universal decoder for pulse distance protocols
 #define DECODE_NEC          // Includes Apple and Onkyo
-#define DECODE_DISTANCE     // in case NEC is not received correctly
+#define DECODE_DISTANCE_WIDTH // In case NEC is not received correctly. Universal decoder for pulse distance width protocols
 
 //#define EXCLUDE_UNIVERSAL_PROTOCOLS // Saves up to 1000 bytes program memory.
 //#define EXCLUDE_EXOTIC_PROTOCOLS
@@ -60,18 +60,17 @@ void setup() {
     // Start the receiver and if not 3. parameter specified, take LED_BUILTIN pin from the internal boards definition as default feedback LED
     IrReceiver.begin(IR_RECEIVE_PIN, ENABLE_LED_FEEDBACK);
 
-#if defined(IR_SEND_PIN)
-    IrSender.begin(); // Start with IR_SEND_PIN as send pin and enable feedback LED at default feedback LED pin
-#else
-    IrSender.begin(3, ENABLE_LED_FEEDBACK); // Specify send pin and enable feedback LED at default feedback LED pin
-#endif
-
     Serial.print(F("Ready to receive IR signals of protocols: "));
     printActiveIRProtocols(&Serial);
     Serial.println(F("at pin " STR(IR_RECEIVE_PIN)));
 
-    Serial.println(F("Ready to send IR signals at pin " STR(IR_SEND_PIN)));
-
+#if defined(IR_SEND_PIN)
+    IrSender.begin(); // Start with IR_SEND_PIN as send pin and enable feedback LED at default feedback LED pin
+    Serial.println(F("Send IR signals at pin " STR(IR_SEND_PIN)));
+#else
+    IrSender.begin(3, ENABLE_LED_FEEDBACK, USE_DEFAULT_FEEDBACK_LED_PIN); // Specify send pin and enable feedback LED at default feedback LED pin
+    Serial.println(F("Send IR signals at pin 3"));
+#endif
 
 #if FLASHEND >= 0x3FFF  // For 16k flash or more, like ATtiny1604
 // For esp32 we use PWM generation by ledcWrite() for each pin.
@@ -123,7 +122,11 @@ void receive_ir_data() {
         Serial.print(F("Decoded protocol: "));
         Serial.print(getProtocolString(IrReceiver.decodedIRData.protocol));
         Serial.print(F("Decoded raw data: "));
+#if (__INT_WIDTH__ < 32)
         Serial.print(IrReceiver.decodedIRData.decodedRawData, HEX);
+#else
+        PrintULL::print(&Serial, IrReceiver.decodedIRData.decodedRawData, HEX);
+#endif
         Serial.print(F(", decoded address: "));
         Serial.print(IrReceiver.decodedIRData.address, HEX);
         Serial.print(F(", decoded command: "));

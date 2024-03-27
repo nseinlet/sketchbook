@@ -32,16 +32,23 @@ int8_t tempmhz;
 float humidity, tempdht, tempreal;
 int ledpin = 6;
 int status = WL_IDLE_STATUS;
+int pingResult;
 WiFiServer server(80);
 IPAddress ip;
 
 uint32_t delayMS;
+uint32_t delayPing;
 long lastReadingTime = 0;
+long lastPingTime = 0;
+long lastSrvTime = 0;
+bool pingIsOk;
 
 void setup () {
   if (serialdebug){Serial.begin(115200);};
 
   delayMS=30000;
+  pingIsOk = true;
+  delayPing = 600000;
 
   display.begin(SSD1306_SWITCHCAPVCC, 0x3C);
   display.clearDisplay();
@@ -147,7 +154,7 @@ void setup () {
   }
   
   server.begin(); 
-  Watchdog.enable(4000);
+  Watchdog.enable(600000);
 
   //Control led
   pinMode(6, OUTPUT);
@@ -174,6 +181,7 @@ void listenForWifiClients() {
     while (client.connected()) {
       if (client.available()) {
         digitalWrite(6, HIGH);
+        lastSrvTime = millis();
         char c = client.read();
         // if you've gotten to the end of the line (received a newline
         // character) and the line is blank, the http request has ended,
@@ -290,7 +298,6 @@ void check_wifi() {
 };
 
 void loop () {
-  Watchdog.reset();
   if (millis() - lastReadingTime > delayMS) {
     digitalWrite(6, HIGH);
     readDHT22();
@@ -304,4 +311,13 @@ void loop () {
   };   
      
   listenForWifiClients();
+
+  if (pingIsOk){Watchdog.reset();};
+  if (millis() - lastPingTime > delayPing) {
+    if (serialdebug){Serial.println("Ping..."); };
+    pingResult = WiFi.ping("172.16.17.253");
+    if (pingResult >= 0) {if (serialdebug){Serial.println("Ping done"); };} else {pingIsOk=false; };
+    lastPingTime = millis();
+    if ((lastPingTime-lastSrvTime)>900000) {pingIsOk=false; };
+  };  
 }

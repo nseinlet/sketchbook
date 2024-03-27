@@ -2,8 +2,6 @@
 /*!
   @file NMEA_data.cpp
 
-  @section intro Introduction
-
   Code for tracking values that change with time so that history can be
   examined for recent trends in real time. This code will only generate the
   stubs for newDataValue() and data_init(), adding essentially nothing to
@@ -25,13 +23,9 @@
   records. It updates all the same variables as the GPS object, so you could
   skip the GPS parsing step.
 
-  @section author Author
+  @author Rick Sellens.
 
-  Written by Rick Sellens.
-
-  @section license License
-
-  CCBY license
+  @copyright CCBY license
 */
 /**************************************************************************/
 
@@ -356,8 +350,9 @@ void Adafruit_GPS::initDataValue(nmea_index_t idx, char *label, char *fmt,
     val[idx].type = type;
     if ((int)(val[idx].type / 10) ==
         1) { // angle with sin/cos component recording
-      initDataValue((nmea_index_t)(
-          idx + 1)); // initialize the next two data values as well
+      initDataValue(
+          (nmea_index_t)(idx +
+                         1)); // initialize the next two data values as well
       initDataValue((nmea_index_t)(idx + 2));
     }
   }
@@ -377,6 +372,7 @@ void Adafruit_GPS::initDataValue(nmea_index_t idx, char *label, char *fmt,
     @param offset Value for scaling the integer history list
     @param historyInterval Approximate Time in seconds between historical
    values.
+    @param historyN Set size of data buffer.
     @return pointer to the history
 */
 /**************************************************************************/
