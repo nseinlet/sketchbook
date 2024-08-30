@@ -4,7 +4,7 @@
  *  Contains pin definitions for IRremote examples for various platforms
  *  as well as definitions for feedback LED and tone() and includes
  *
- *  Copyright (C) 2021-2022  Armin Joachimsmeyer
+ *  Copyright (C) 2021-2023  Armin Joachimsmeyer
  *  armin.joachimsmeyer@gmail.com
  *
  *  This file is part of IRremote https://github.com/Arduino-IRremote/Arduino-IRremote.
@@ -16,8 +16,8 @@
  *
  *  This program is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ *  See the GNU General Public License for more details.
  *
  *  You should have received a copy of the GNU General Public License
  *  along with this program. If not, see <http://www.gnu.org/licenses/gpl.html>.
@@ -29,84 +29,99 @@
  *
  * Platform     IR input    IR output   Tone      Core/Pin schema
  * --------------------------------------------------------------
- * DEFAULT/AVR  2           3           4
- * ATtinyX5     0|PB0       4|PB4       3|PB3
+ * DEFAULT/AVR  2           3           4         Arduino
+ * ATtinyX5     0|PB0       4|PB4       3|PB3     ATTinyCore
  * ATtiny167    3|PA3       2|PA2       7|PA7     ATTinyCore
- * ATtiny167    9|PA3       8|PA2       5|PA7     Digispark pro
+ * ATtiny167    9|PA3       8|PA2       5|PA7     Digispark original core
+ * ATtiny84      |PB2        |PA4        |PA3     ATTinyCore
+ * ATtiny88     3|PD3       4|PD4       9|PB1     ATTinyCore
  * ATtiny3217  18|PA1      19|PA2      20|PA3     MegaTinyCore
  * ATtiny1604   2           3|PA5       %
  * ATtiny816   14|PA1      16|PA3       1|PA5     MegaTinyCore
  * ATtiny1614   8|PA1      10|PA3       1|PA5     MegaTinyCore
  * SAMD21       3           4           5
  * ESP8266      14|D5       12|D6       %
- * ESP32        15          4           27
- * BluePill     PA6         PA7         PA3
+ * ESP32        15          4          27
+ * ESP32-C3     6           7          10
+ * BluePill     PA6         PA7       PA3
  * APOLLO3      11          12          5
  * RP2040       3|GPIO15    4|GPIO16    5|GPIO17
  */
 //#define _IR_MEASURE_TIMING // For debugging purposes.
 
 #if defined(__AVR__)
-#if defined(__AVR_ATtiny25__) || defined(__AVR_ATtiny45__) || defined(__AVR_ATtiny85__) // Digispark board
-#include "ATtinySerialOut.hpp" // Available as Arduino library "ATtinySerialOut". saves 370 bytes program memory and 38 bytes RAM for digistump core
-#define IR_RECEIVE_PIN  0
-#define IR_SEND_PIN     4 // Pin 2 is serial output with ATtinySerialOut. Pin 1 is internal LED and Pin3 is USB+ with pullup on Digispark board.
-#define TONE_PIN        3
-#define _IR_TIMING_TEST_PIN 3
+#if defined(__AVR_ATtiny25__) || defined(__AVR_ATtiny45__) || defined(__AVR_ATtiny85__) // Digispark board. For use with ATTinyCore.
+#include "ATtinySerialOut.hpp" // TX is at pin 2 - Available as Arduino library "ATtinySerialOut". Saves 700 bytes program memory and 70 bytes RAM for ATtinyCore.
+#define IR_RECEIVE_PIN  PIN_PB0
+#define IR_SEND_PIN     PIN_PB4 // Pin 2 is serial output with ATtinySerialOut. Pin 1 is internal LED and Pin3 is USB+ with pullup on Digispark board.
+#define TONE_PIN        PIN_PB3
+#define _IR_TIMING_TEST_PIN PIN_PB3
 
 #  elif defined(__AVR_ATtiny87__) || defined(__AVR_ATtiny167__) // Digispark pro board
 #include "ATtinySerialOut.hpp" // Available as Arduino library "ATtinySerialOut"
 // For ATtiny167 Pins PB6 and PA3 are usable as interrupt source.
 #  if defined(ARDUINO_AVR_DIGISPARKPRO)
+// For use with Digispark original core
 #define IR_RECEIVE_PIN   9 // PA3 - on Digispark board labeled as pin 9
 //#define IR_RECEIVE_PIN  14 // PB6 / INT0 is connected to USB+ on DigisparkPro boards
 #define IR_SEND_PIN      8 // PA2 - on Digispark board labeled as pin 8
 #define TONE_PIN         5 // PA7 - on Digispark board labeled as pin 5
 #define _IR_TIMING_TEST_PIN 10 // PA4
 #  else
-#define IR_RECEIVE_PIN  3 // PA3 - on Digispark board labeled as pin 9
-#define IR_SEND_PIN     2 // PA2 - on Digispark board labeled as pin 8
-#define TONE_PIN        7 // PA7 - on Digispark board labeled as pin 5
+// For use with ATTinyCore
+#define IR_RECEIVE_PIN  PIN_PA3 // On Digispark board labeled as pin 9 - INT0 is connected to USB+ on DigisparkPro boards
+#define IR_SEND_PIN     PIN_PA2 // On Digispark board labeled as pin 8
+#define TONE_PIN        PIN_PA7 // On Digispark board labeled as pin 5
 #  endif
 
-#  elif defined(__AVR_ATtiny88__) // MH-ET Tiny88 board
-#include "ATtinySerialOut.hpp" // Available as Arduino library "ATtinySerialOut". Saves 128 bytes program memory
-// Pin 6 is TX pin 7 is RX
-#define IR_RECEIVE_PIN   3 // INT1
-#define IR_SEND_PIN      4
-#define TONE_PIN         9
-#define _IR_TIMING_TEST_PIN 8
+#  elif defined(__AVR_ATtiny84__) // For use with ATTinyCore
+#include "ATtinySerialOut.hpp" // Available as Arduino library "ATtinySerialOut". Saves 128 bytes program memory.
+#define IR_RECEIVE_PIN   PIN_PB2 // INT0
+#define IR_SEND_PIN      PIN_PA4
+#define TONE_PIN         PIN_PA3
+#define _IR_TIMING_TEST_PIN PIN_PA5
 
-#  elif defined(__AVR_ATtiny1616__)  || defined(__AVR_ATtiny3216__) || defined(__AVR_ATtiny3217__) // Tiny Core Dev board
-#define IR_RECEIVE_PIN  18
-#define IR_SEND_PIN     19
-#define TONE_PIN        20
-#define APPLICATION_PIN  0 // PA4
-#undef LED_BUILTIN         // No LED available on the TinyCore 32 board, take the one on the programming board which is connected to the DAC output
-#define LED_BUILTIN      2 // PA6
+#  elif defined(__AVR_ATtiny88__) // MH-ET Tiny88 board. For use with ATTinyCore.
+#include "ATtinySerialOut.hpp" // Available as Arduino library "ATtinySerialOut". Saves 128 bytes program memory.
+// Pin 6 is TX, pin 7 is RX
+#define IR_RECEIVE_PIN   PIN_PD3 // 3 - INT1
+#define IR_SEND_PIN      PIN_PD4 // 4
+#define TONE_PIN         PIN_PB1 // 9
+#define _IR_TIMING_TEST_PIN PIN_PB0 // 8
 
-#  elif defined(__AVR_ATtiny816__) // Tiny Core Micro
-#define IR_RECEIVE_PIN  14 // PA1
-#define IR_SEND_PIN     16 // PA3
-#define TONE_PIN         1 // PA5
-#define APPLICATION_PIN  0 // PA4
-#undef LED_BUILTIN         // No LED available, take the one which is connected to the DAC output
-#define LED_BUILTIN      4 // PB5
+#  elif defined(__AVR_ATtiny1616__)  || defined(__AVR_ATtiny3216__) || defined(__AVR_ATtiny3217__) // For use with megaTinyCore
+// Tiny Core Dev board
+// https://www.tindie.com/products/xkimi/tiny-core-16-dev-board-attiny1616/ - Out of Stock
+// https://www.tindie.com/products/xkimi/tiny-core-32-dev-board-attiny3217/ - Out of Stock
+#define IR_RECEIVE_PIN   PIN_PA1 // use 18 instead of PIN_PA1 for TinyCore32
+#define IR_SEND_PIN      PIN_PA2 // 19
+#define TONE_PIN         PIN_PA3 // 20
+#define APPLICATION_PIN  PIN_PA0 // 0
+#undef LED_BUILTIN               // No LED available on the TinyCore 32 board, take the one on the programming board which is connected to the DAC output
+#define LED_BUILTIN      PIN_PA6 // use 2 instead of PIN_PA6 for TinyCore32
 
-#  elif defined(__AVR_ATtiny1614__)
-#define IR_RECEIVE_PIN   8 // PA1
-#define IR_SEND_PIN     10 // PA3
-#define TONE_PIN         1 // PA5
-#define APPLICATION_PIN  0 // PA4
+#  elif defined(__AVR_ATtiny816__) // For use with megaTinyCore
+#define IR_RECEIVE_PIN  PIN_PA1 // 14
+#define IR_SEND_PIN     PIN_PA1 // 16
+#define TONE_PIN        PIN_PA5 // 1
+#define APPLICATION_PIN PIN_PA4 // 0
+#undef LED_BUILTIN              // No LED available, take the one which is connected to the DAC output
+#define LED_BUILTIN     PIN_PB5 // 4
 
-#  elif defined(__AVR_ATtiny1604__)
-#define IR_RECEIVE_PIN   2 // To be compatible with interrupt example, pin 2 is chosen here.
-#define IR_SEND_PIN      3
-#define APPLICATION_PIN  5
+#  elif defined(__AVR_ATtiny1614__) // For use with megaTinyCore
+#define IR_RECEIVE_PIN   PIN_PA1 // 8
+#define IR_SEND_PIN      PIN_PA3 // 10
+#define TONE_PIN         PIN_PA5 // 1
+#define APPLICATION_PIN  PIN_PA4 // 0
+
+#  elif defined(__AVR_ATtiny1604__) // For use with megaTinyCore
+#define IR_RECEIVE_PIN   PIN_PA6 // 2 - To be compatible with interrupt example, pin 2 is chosen here.
+#define IR_SEND_PIN      PIN_PA7 // 3
+#define APPLICATION_PIN  PIN_PB2 // 5
 
 #define tone(...) void()      // Define as void, since TCB0_INT_vect is also used by tone()
 #define noTone(a) void()
-#define TONE_PIN        42 // Dummy for examples using it
+#define TONE_PIN         42 // Dummy for examples using it
 
 #  elif defined(__AVR_ATmega1284__) || defined(__AVR_ATmega1284P__) \
 || defined(__AVR_ATmega644__) || defined(__AVR_ATmega644P__) \
@@ -139,22 +154,32 @@
 #    endif
 #  endif // defined(__AVR_ATtiny25__)...
 
+#elif defined(ARDUINO_ARCH_RENESAS_UNO) // Uno R4
+// To be compatible with Uno R3.
+#define IR_RECEIVE_PIN      2
+#define IR_SEND_PIN         3
+#define TONE_PIN            4
+#define APPLICATION_PIN     5
+#define ALTERNATIVE_IR_FEEDBACK_LED_PIN 6 // E.g. used for examples which use LED_BUILDIN for example output.
+#define _IR_TIMING_TEST_PIN 7
+
 #elif defined(ESP8266)
 #define FEEDBACK_LED_IS_ACTIVE_LOW // The LED on my board (D4) is active LOW
 #define IR_RECEIVE_PIN          14 // D5
 #define IR_SEND_PIN             12 // D6 - D4/pin 2 is internal LED
-#define _IR_TIMING_TEST_PIN     13 // D7
-#define APPLICATION_PIN          0 // D3
+#define _IR_TIMING_TEST_PIN      2 // D4
+#define APPLICATION_PIN         13 // D7
 
 #define tone(...) void()      // tone() inhibits receive timer
 #define noTone(a) void()
 #define TONE_PIN                42 // Dummy for examples using it
 
-#elif defined(CONFIG_IDF_TARGET_ESP32C3)
-#define IR_INPUT_PIN             8
-#define IR_SEND_PIN              9
-#define TONE_PIN                10 // ADC2_0
-#define APPLICATION_PIN         11
+#elif defined(CONFIG_IDF_TARGET_ESP32C3) || defined(ARDUINO_ESP32C3_DEV)
+#define NO_LED_FEEDBACK_CODE   // The  WS2812 on pin 8 of AI-C3 board crashes if used as receive feedback LED, other I/O pins are working...
+#define IR_RECEIVE_PIN           6
+#define IR_SEND_PIN              7
+#define TONE_PIN                10
+#define APPLICATION_PIN         18
 
 #elif defined(ESP32)
 #include <Arduino.h>
@@ -205,7 +230,8 @@ void noTone(uint8_t aPinNumber){
 #define IR_SEND_PIN     12
 #define TONE_PIN         5
 
-#elif defined(ARDUINO_ARCH_MBED) && defined(ARDUINO_ARCH_MBED_NANO) // Arduino Nano 33 BLE
+#elif defined(ARDUINO_ARCH_MBED) && defined(ARDUINO_ARCH_MBED_NANO) // Arduino Nano 33 BLE and Arduino Nano Connect layout for MBED
+// Must be before ARDUINO_ARCH_RP2040, since it is the layout for the MBED core of Arduino Nano Connect
 #define IR_RECEIVE_PIN      3   // GPIO15 Start with pin 3 since pin 2|GPIO25 is connected to LED on Pi pico
 #define IR_SEND_PIN         4   // GPIO16
 #define TONE_PIN            5
@@ -259,7 +285,7 @@ void noTone(uint8_t aPinNumber){
 #define ALTERNATIVE_IR_FEEDBACK_LED_PIN 6 // E.g. used for examples which use LED_BUILDIN for example output.
 #define _IR_TIMING_TEST_PIN 7
 
-#if !defined(ARDUINO_SAMD_ADAFRUIT)
+#if !defined(ARDUINO_SAMD_ADAFRUIT) && !defined(ARDUINO_SEEED_XIAO_M0)
 // On the Zero and others we switch explicitly to SerialUSB
 #define Serial SerialUSB
 #endif
@@ -299,18 +325,12 @@ void noTone(uint8_t aPinNumber){
 #define SEND_PWM_BY_TIMER // We do not have pin restrictions for this CPU's, so lets use the hardware PWM for send carrier signal generation
 #else
 # if defined(SEND_PWM_BY_TIMER)
-#undef IR_SEND_PIN // SendPin is determined by timer! This avoids warning in IRTimer.hpp
+#undef IR_SEND_PIN // SendPin is determined by timer! This avoids warnings in IRremote.hpp and IRTimer.hpp
 #  endif
 #endif
 
 #if !defined (FLASHEND)
 #define FLASHEND 0xFFFF // Dummy value for platforms where FLASHEND is not defined
-#endif
-#if !defined (RAMEND)
-#define RAMEND 0xFFFF // Dummy value for platforms where RAMEND is not defined
-#endif
-#if !defined (RAMSIZE)
-#define RAMSIZE 0xFFFF // Dummy value for platforms where RAMSIZE is not defined
 #endif
 
 /*

@@ -2,8 +2,82 @@
 The latest version may not be released!
 See also the commit log at github: https://github.com/Arduino-IRremote/Arduino-IRremote/commits/master
 
+# 4.4.0
+- Using 8 bit raw timing buffer for all timings except frame gap (former rawbuf[0]).
+- Renamed decodedIRData.initialGap to decodedIRData.initialGapTicks.
+- sendNEC() and sendNEC2() now accepts 16 bit command to better map to NECext protocol found in IRDB databases.
+- ir_DistanceWidthProtocol() now decodes up to 10 ms mark or spaces if RAM is bigger than 2 k.
+- Improved sensitivity and decoding of PULSE_DISTANCE + PULSE_WIDTH protocols.
+- Changed TOLERANCE_FOR_DECODERS_MARK_OR_SPACE_MATCHING to TOLERANCE_FOR_DECODERS_MARK_OR_SPACE_MATCHING_PERCENT.
+- Improved examples AllProtocolsOnLCD, UnitTest and SimpleReceiver.
+- New functions decodePulseDistanceWidthData() with 6 parameters and decodePulseDistanceWidthDataStrict() with 7 parameters.
+
+# 4.3.2
+- Added sendSonyMSB(unsigned long data, int nbits) as a clone of sendSony(unsigned long data, int nbits) to be more consistent.
+- Added sendSamsungMSB(unsigned long data, int nbits) as a clone of sendSAMSUNG(unsigned long data, int nbits) to be more consistent.
+- Added ESP32 core 3.x error message.
+
+# 4.3.1
+ - Fixed overflow bug for rawlen > 254.
+ - Removed deprecated sendPulseDistance... functions with parameter aSendStopBit.
+
+# 4.3.0
+- Removed default value USE_DEFAULT_FEEDBACK_LED_PIN for last parameter of IRsend::begin(bool aEnableLEDFeedback, uint_fast8_t aFeedbackLEDPin).
+    Therefore IrSender.begin(DISABLE_LED_FEEDBACK) will not longer work!
+- Added convenience function isIRReceiverAttachedForTinyReceiver().
+- Added Extended NEC Protocol macro to TinyIR by Buzzerb.
+- Fixed sendSamsung() / sendSamsungLG() bug.
+- Added functions stopTimer(), restartTimer() and restartTimerWithTicksToAdd().
+- Added rawlen and initialGap to IRData.
+- Added ReceiveAndSendHobToHood example.
+- Changed RECORD_GAP_MICROS default value from 5000 to 8000.
+
+# 4.2.1
+- Fix wrong type of tEnableLEDFeedback in IRSend.hpp and IRReceive.hpp.
+- TinyReceiver 2.0
+  - New TinyIRReceiverData which is filled with address, command and flags.
+  - Removed parameters address, command and flags from callback handleReceivedTinyIRData() and printTinyReceiverResultMinimal().
+  - Callback function now only enabled if USE_CALLBACK_FOR_TINY_RECEIVER is activated.
+- Fix changing IR_SEND_PIN dynamically for ESP32.
+- Fix wrong type of tEnableLEDFeedback.
+- Support for ESP32-C3.
+
+# 4.2.0
+- The old decode function is renamed to decode_old(decode_results *aResults). decode (decode_results *aResults) is only available in IRremote.h and prints a message.
+- Added DECODE_ONKYO, to force 16 bit command and data decoding.
+- Enable Bang&Olufsen 455 kHz if SEND_PWM_BY_TIMER is defined.
+- Fixed bug: TinyReceiver throwing ISR not in IRAM on ESP8266.
+- Usage of ATTinyCore pin numbering scheme e.g. PIN_PB2.
+- Added ARDUINO_ARCH_NRF52 to support Seeed XIAO nRF52840 Sense.
+- First untested support of Uno R4.
+- Extraced version macros to IRVersion.h.
+
+## 4.1.2
+- Workaround for ESP32 RTOS delay() timing bug influencing the mark() function.
+
+## 4.1.1
+- SAMD51 use timer3 if timer5 not available.
+- Disabled #define LOCAL_DEBUG in IRReceive.hpp, which was accidently enabled at 4.1.0.
+
+## 4.1.0
+- Fixed bug in printing durations > 64535 in printIRResultRawFormatted().
+- Narrowed constraints for RC5 RC6 number of bits.
+- Changed the first parameter of printTinyReceiverResultMinimal() to &Serial.
+- Removed 3 Serial prints for deprecation warnings to fix #1094.
+- Version 1.2.0 of TinyIR. Now FAST protocol with 40 ms period and shorter header space.
+- Removed field "bool hasStopBit" and parameter "bool aSendStopBit" from PulseDistanceWidthProtocolConstants structure and related functions.
+- Changed a lot of "unsigned int" types to "uint16_t" types.
+- Improved overflow handling.
+- Improved software PWM generation.
+- Added FAST protocol.
+- Improved handling of PULSE_DISTANCE + PULSE_WIDTH protocols.
+- New example ReceiveAndSendDistanceWidth.
+- Removed the automatic restarting of the receiver timer after sending with SEND_PWM_BY_TIMER enabled.
+- Split ISR into ISR and function IRPinChangeInterruptHandler().
+- Added functions addTicksToInternalTickCounter() and addMicrosToInternalTickCounter().
+
 ## 4.0.0
-- Added decoding of PulseDistanceWidth protocols and therfore changed function decodeDistance() to decodeDistanceWidth() and filename ir_DistanceProtocol.hpp to ir_DistanceWidthProtocol.hpp.
+- Added decoding of PulseDistanceWidth protocols and therefore changed function decodeDistance() to decodeDistanceWidth() and filename ir_DistanceProtocol.hpp to ir_DistanceWidthProtocol.hpp.
 - Removed static function printIRSendUsage(), but kept class function printIRSendUsage().
 - Changed type of decodedRawData and decodedRawDataArray which is now 64 bit for 32 bit platforms.
 - Added receiver callback functionality and registerReceiveCompleteCallback() function.
@@ -15,8 +89,7 @@ See also the commit log at github: https://github.com/Arduino-IRremote/Arduino-I
 - Fix for #1028 - Prevent long delay caused by overflow when frame duration < repeat period - Thanks to Stephen Humphries!
 - Support for ATtiny816 - Thanks to elockman.
 - Added Bang&Olufsen protocol. #1030.
-- 3. parameter of function "void begin(uint_fast8_t aSendPin, bool aEnableLEDFeedback, uint_fast8_t aFeedbackLEDPin)" is not optional anymore
-     and this function is now only available if IR_SEND_PIN is not defined. #1033.
+- Third parameter of function "void begin(uint_fast8_t aSendPin, bool aEnableLEDFeedback, uint_fast8_t aFeedbackLEDPin)" is not optional anymore and this function is now only available if IR_SEND_PIN is not defined. #1033.
 - Fixed bug in sendSony() for command parameter > 0x7F;
 - Fixed bug with swapped LG2 header mark and space.
 - Disabled strict checks while decoding. They can be enabled by defining DECODE_STRICT_CHECKS.

@@ -20,6 +20,7 @@
 #define _ARDUINOOTA_H_
 
 #include "WiFiOTA.h"
+
 #ifdef __AVR__
 #if FLASHEND >= 0xFFFF
 #include "InternalStorageAVR.h"
@@ -28,6 +29,8 @@
 #include <InternalStorageSTM32.h>
 #elif defined(ARDUINO_ARCH_RP2040)
 #include <InternalStorageRP2.h>
+#elif defined(ARDUINO_ARCH_RENESAS_UNO)
+#include <InternalStorageRenesas.h>
 #elif defined(ESP8266) || defined(ESP32)
 #include "InternalStorageESP.h"
 #else
@@ -59,10 +62,10 @@ public:
   }
 
   void end() {
-#if defined(ESP8266) || defined(ESP32)
-    server.stop();
-#elif defined(_WIFI_ESP_AT_H_)
+#if defined(_WIFI_ESP_AT_H_)|| defined(WiFiS3_h) || defined(ESP32) || defined(UIPETHERNET_H)
     server.end();
+#elif defined(ESP8266) || (defined(ARDUINO_ARCH_RP2040) && !defined(ARDUINO_ARCH_MBED))
+    server.stop();
 #else
 //#warning "The networking library doesn't have a function to stop the server"
 #endif
@@ -107,37 +110,38 @@ public:
     WiFiOTAClass::pollMdns(mdnsSocket);
   }
 
+  void handle() { // alias
+    poll();
+  }
+
 };
 
-#if defined(ethernet_h_) || defined(ethernet_h) // Ethernet library
+#ifndef NO_OTA_NETWORK
+
+#if defined(ethernet_h_) || defined(ethernet_h) || defined(UIPETHERNET_H)
+#define OTETHERNET
+#endif
+#if defined(UIPETHERNET_H) || defined(WIFIESPAT1) // no UDP multicast implementation
+#define NO_OTA_PORT
+#endif
+
+#ifdef OTETHERNET
 #ifdef NO_OTA_PORT
 ArduinoOTAClass  <EthernetServer, EthernetClient>   ArduinoOTA;
 #else
 ArduinoOTAMdnsClass  <EthernetServer, EthernetClient, EthernetUDP>   ArduinoOTA;
 #endif
 
-#elif defined(UIPETHERNET_H) // no UDP multicast implementation yet
-ArduinoOTAClass  <EthernetServer, EthernetClient>   ArduinoOTA;
+#else
 
-#elif defined(WiFiNINA_h) || defined(WIFI_H) || defined(ESP8266) || defined(ESP32) || defined(ARDUINO_RASPBERRY_PI_PICO_W) // NINA, WiFi101 and Espressif WiFi
 #ifdef NO_OTA_PORT
 ArduinoOTAClass  <WiFiServer, WiFiClient> ArduinoOTA;
 #else
 #include <WiFiUdp.h>
 ArduinoOTAMdnsClass <WiFiServer, WiFiClient, WiFiUDP> ArduinoOTA;
 #endif
+#endif
 
-#elif defined(_WIFI_ESP_AT_H_) && !defined(WIFIESPAT1) && !defined(NO_OTA_PORT) // WiFiEspAT with AT2 has UDP multicast
-ArduinoOTAMdnsClass  <WiFiServer, WiFiClient, WiFiUDP> ArduinoOTA;
-
-#elif defined(WiFi_h) || defined(_WIFI_ESP_AT_H_) // WiFi, WiFiLink and WiFiEspAT lib (no UDP multicast) for WiFiLink the firmware handles mdns
-ArduinoOTAClass  <WiFiServer, WiFiClient> ArduinoOTA;
-
-#elif defined(_WIFISPI_H_INCLUDED) // no UDP multicast implementation
-ArduinoOTAClass  <WiFiSpiServer, WiFiSpiClient> ArduinoOTA;
-
-#else
-#warning "Network library not included or not supported"
 #endif
 
 #endif
