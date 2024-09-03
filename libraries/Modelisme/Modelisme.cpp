@@ -16,7 +16,7 @@ int Receiver::read()
 {
   sBus.FeedLine();
   if (sBus.toChannels == 1){
-    sBus.UpdateServos();
+    //sBus.UpdateServos();
     sBus.UpdateChannels();
     sBus.toChannels = 0;
 
