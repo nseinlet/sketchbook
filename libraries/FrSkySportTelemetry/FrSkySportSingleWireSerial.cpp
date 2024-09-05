@@ -89,6 +89,8 @@ void FrSkySportSingleWireSerial::begin(SerialId id)
 #endif
 #elif defined(__AVR_ATmega328P__) || defined(__AVR_ATmega2560__) || defined(ESP8266)
   if(id == SERIAL_EXTINV) initTwoWireSerial(id, &Serial);
+#elif defined(ARDUINO_AVR_NANO_EVERY)
+  if(id == SERIAL_EXTINV) initTwoWireSerial(id, &Serial1);
 #if defined(__AVR_ATmega2560__)
   else if(id == SERIAL_1_EXTINV) initTwoWireSerial(id, &Serial1);
   else if(id == SERIAL_2_EXTINV) initTwoWireSerial(id, &Serial2);
