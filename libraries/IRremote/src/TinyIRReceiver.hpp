@@ -446,6 +446,17 @@ bool TinyReceiverDecode() {
 }
 
 /*
+ * Function to be used as drop in for IrReceiver.decode()
+ */
+bool TinyReceiverDecode() {
+    bool tJustWritten = TinyIRReceiverData.justWritten;
+    if (tJustWritten) {
+        TinyIRReceiverData.justWritten = false;
+    }
+    return tJustWritten;
+}
+
+/*
  * Checks if IR_RECEIVE_PIN is connected and high
  * @return true, if IR Receiver is attached
  */

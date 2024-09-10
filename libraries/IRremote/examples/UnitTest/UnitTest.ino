@@ -508,6 +508,9 @@ void loop() {
     IrSender.sendNEC(sAddress & 0xFF, sCommand, 0); // sending first frame -> decodes as NEC
     checkReceive(sAddress & 0xFF, sCommand);
 
+    /*
+     * Complete NEC frames as repeats to force decoding as NEC2 are tested here
+     */
     for (int8_t i = 0; i < sRepeats; i++) {
 #  if defined(DEBUG_BUTTON_PIN)
         if (digitalRead(DEBUG_BUTTON_PIN) != LOW) {
