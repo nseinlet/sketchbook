@@ -93,6 +93,15 @@ void setup() {
     Serial.print(IrSender.periodTimeMicros);
     Serial.println(F(" us"));
 #endif
+
+#if defined(LED_BUILTIN) && !defined(NO_LED_FEEDBACK_CODE)
+#  if defined(FEEDBACK_LED_IS_ACTIVE_LOW)
+    Serial.print(F("Active low "));
+#  endif
+    Serial.print(F("FeedbackLED at pin "));
+    Serial.println(LED_BUILTIN); // Works also for ESP32: static const uint8_t LED_BUILTIN = 8; #define LED_BUILTIN LED_BUILTIN
+#endif
+
 }
 
 /*
@@ -349,6 +358,11 @@ void loop() {
     Serial.println(F("Send RC6"));
     Serial.flush();
     IrSender.sendRC6(sAddress, sCommand, sRepeats, true);
+    delay(DELAY_AFTER_SEND);
+
+    Serial.println(F("Send RC6A with 14 bit 0x2711 as extra"));
+    Serial.flush();
+    IrSender.sendRC6A(sAddress & 0xFF, sCommand, sRepeats, 0x2711, true);
     delay(DELAY_AFTER_SEND);
 
 #if FLASHEND >= 0x3FFF && ((defined(RAMEND) && RAMEND > 0x4FF) || (defined(RAMSIZE) && RAMSIZE > 0x4FF)) // For 16k flash or more, like ATtiny1604. Code does not fit in program memory of ATtiny85 etc.

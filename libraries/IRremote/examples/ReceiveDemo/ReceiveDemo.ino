@@ -66,16 +66,13 @@
 // !!! Enabling B&O disables detection of Sony, because the repeat gap for SONY is smaller than the B&O frame gap :-( !!!
 //#define DECODE_BEO // Bang & Olufsen protocol always must be enabled explicitly. It has an IR transmit frequency of 455 kHz! It prevents decoding of SONY!
 #endif
-#if defined(DECODE_BEO)
-#define RECORD_GAP_MICROS 16000 // always get the complete frame in the receive buffer, but this prevents decoding of SONY!
-#endif
 // etc. see IRremote.hpp
 //
 
 #if !defined(RAW_BUFFER_LENGTH)
 // For air condition remotes it requires 750. Default is 200.
 #  if !((defined(RAMEND) && RAMEND <= 0x4FF) || (defined(RAMSIZE) && RAMSIZE < 0x4FF))
-#define RAW_BUFFER_LENGTH  750
+#define RAW_BUFFER_LENGTH  730 // this allows usage of 16 bit raw buffer, for RECORD_GAP_MICROS > 20000
 #  endif
 #endif
 
@@ -88,6 +85,9 @@
 // to compensate for the signal forming of different IR receiver modules. See also IRremote.hpp line 142.
 //#define MARK_EXCESS_MICROS    20    // Adapt it to your IR receiver module. 40 is taken for the cheap VS1838 module her, since we have high intensity.
 
+#if defined(DECODE_BEO)
+#define RECORD_GAP_MICROS 16000 // always get the complete frame in the receive buffer, but this prevents decoding of SONY!
+#endif
 //#define RECORD_GAP_MICROS 12000 // Default is 8000. Activate it for some LG air conditioner protocols
 
 //#define DEBUG // Activate this for lots of lovely debug output from the decoders.
@@ -135,18 +135,23 @@ void setup() {
     Serial.println(F("at pin " STR(IR_RECEIVE_PIN)));
 #endif
 
+#if defined(LED_BUILTIN) && !defined(NO_LED_FEEDBACK_CODE)
+#  if defined(FEEDBACK_LED_IS_ACTIVE_LOW)
+    Serial.print(F("Active low "));
+#  endif
+    Serial.print(F("FeedbackLED at pin "));
+    Serial.println(LED_BUILTIN); // Works also for ESP32: static const uint8_t LED_BUILTIN = 8; #define LED_BUILTIN LED_BUILTIN
+#endif
+
 #if FLASHEND >= 0x3FFF  // For 16k flash or more, like ATtiny1604. Code does not fit in program memory of ATtiny85 etc.
     Serial.println();
-    if (digitalRead(DEBUG_BUTTON_PIN) != LOW) {
-        Serial.print(F("If you connect debug pin "));
+    Serial.print(F("If you connect debug pin "));
 #  if defined(APPLICATION_PIN_STRING)
-        Serial.print(APPLICATION_PIN_STRING);
+    Serial.print(APPLICATION_PIN_STRING);
 #  else
-        Serial.print(DEBUG_BUTTON_PIN);
+    Serial.print(DEBUG_BUTTON_PIN);
 #  endif
-        Serial.print(F(" to ground, "));
-    }
-    Serial.println(F("raw data is always printed"));
+    Serial.println(F(" to ground, raw data is always printed and tone is disabled"));
 
     // infos for receive
     Serial.print(RECORD_GAP_MICROS);
@@ -181,8 +186,7 @@ void loop() {
             /*
              * No overflow here.
              * Stop receiver, generate a single beep, print short info and send usage and start receiver again
-             *****************************************************************************************************/
-
+             */
             if ((IrReceiver.decodedIRData.protocol != SONY) && (IrReceiver.decodedIRData.protocol != PULSE_WIDTH)
                     && (IrReceiver.decodedIRData.protocol != PULSE_DISTANCE) && (IrReceiver.decodedIRData.protocol != UNKNOWN)
                     && digitalRead(DEBUG_BUTTON_PIN) != LOW) {
@@ -256,13 +260,13 @@ void loop() {
  */
 void generateTone() {
 #if !defined(ESP8266) && !defined(NRF5) // tone on esp8266 works only once, then it disables IrReceiver.restartTimer() / timerConfigForReceive().
-#  if defined(ESP32) // ESP32 uses another timer for tone()
+#  if defined(ESP32) // ESP32 uses another timer for tone(), maybe other platforms (not tested yet) too.
     tone(TONE_PIN, 2200, 8);
 #  else
-    IrReceiver.stopTimer(); // ESP32 uses another timer for tone(), maybe other platforms (not tested yet) too.
+    IrReceiver.stopTimer(); // Stop timer consistently before calling tone() or other functions using the timer resource.
     tone(TONE_PIN, 2200, 8);
     delay(8);
-    IrReceiver.restartTimer(8000); // Restart IR timer. 8000 to compensate for 8 ms stop of receiver. This enables a correct gap measurement.
+    IrReceiver.restartTimer(); // Restart IR timer after timer resource is no longer blocked.
 #  endif
 #endif
 }
@@ -286,7 +290,7 @@ void handleOverflow() {
     delay(50);
     tone(TONE_PIN, 1100, 10);
     delay(50);
-    IrReceiver.restartTimer(100000); // to compensate for 100 ms stop of receiver. This enables a correct gap measurement.
+    IrReceiver.restartTimer();
 #  endif
 #endif
 }

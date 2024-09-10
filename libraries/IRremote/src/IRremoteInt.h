@@ -99,7 +99,7 @@ typedef unsigned int IRRawlenType;
  * we can choose to use a 8 bit buffer even for frame gaps up to 200000 us.
  * This enables the use of 8 bit buffer even for more some protocols like B&O or LG air conditioner etc.
  */
-#if RECORD_GAP_TICKS <= 400 // Corresponds to RECORD_GAP_MICROS of 200000. A value of 255 is foolproof, but we assume, that the frame gap is
+#if RECORD_GAP_TICKS <= 400 // Corresponds to RECORD_GAP_MICROS of 200000. A value of 255 is foolproof, but we assume, that the frame gap is way greater than the biggest mark or space duration.
 typedef uint8_t IRRawbufType; // all timings up to the gap fit into 8 bit.
 #else
 typedef uint16_t IRRawbufType; // The gap does not fit into 8 bit ticks value. This must not be a reason to use 16 bit for buffer, but it is at least save.
@@ -113,9 +113,9 @@ typedef uint64_t IRRawDataType;
 #define BITS_IN_RAW_DATA_TYPE   64
 #endif
 
-/****************************************************
+/**********************************************************
  * Declarations for the receiver Interrupt Service Routine
- ****************************************************/
+ **********************************************************/
 // ISR State-Machine : Receiver States
 #define IR_REC_STATE_IDLE      0 // Counting the gap time and waiting for the start bit to arrive
 #define IR_REC_STATE_MARK      1 // A mark was received and we are counting the duration of it.
@@ -143,6 +143,8 @@ struct irparams_struct {
     uint16_t initialGapTicks;   ///< Tick counts of the length of the gap between previous and current IR frame. Pre 4.4: rawbuf[0].
     IRRawbufType rawbuf[RAW_BUFFER_LENGTH]; ///< raw data / tick counts per mark/space. With 8 bit we can only store up to 12.7 ms. First entry is empty to be backwards compatible.
 };
+
+extern unsigned long sMicrosAtLastStopTimer; // Used to adjust TickCounterForISR with uncounted ticks between stopTimer() and restartTimer()
 
 #include "IRProtocol.h"
 
@@ -201,8 +203,8 @@ class IRrecv {
 public:
 
     IRrecv();
-    IRrecv(uint_fast8_t aReceivePin);
-    IRrecv(uint_fast8_t aReceivePin, uint_fast8_t aFeedbackLEDPin);
+    IRrecv(uint_fast8_t aReceivePin) __attribute__ ((deprecated ("Please use the default IRrecv instance \"IrReceiver\" and IrReceiver.begin(), and not your own IRrecv instance.")));
+    IRrecv(uint_fast8_t aReceivePin, uint_fast8_t aFeedbackLEDPin) __attribute__ ((deprecated ("Please use the default IRrecv instance \"IrReceiver\" and IrReceiver.begin(), and not your own IRrecv instance..")));
     void setReceivePin(uint_fast8_t aReceivePinNumber);
 #if !defined(IR_REMOTE_DISABLE_RECEIVE_COMPLETE_CALLBACK)
     void registerReceiveCompleteCallback(void (*aReceiveCompleteCallbackFunction)(void));
@@ -213,17 +215,13 @@ public:
      */
     void begin(uint_fast8_t aReceivePin, bool aEnableLEDFeedback = false, uint_fast8_t aFeedbackLEDPin =
     USE_DEFAULT_FEEDBACK_LED_PIN);
-    void restartTimer();
     void start();
     void enableIRIn(); // alias for start
-    void start(uint32_t aMicrosecondsToAddToGapCounter);
+    void restartTimer();
     void restartTimer(uint32_t aMicrosecondsToAddToGapCounter);
-    void startWithTicksToAdd(uint16_t aTicksToAddToGapCounter);
     void restartTimerWithTicksToAdd(uint16_t aTicksToAddToGapCounter);
     void restartAfterSend();
 
-    void addTicksToInternalTickCounter(uint16_t aTicksToAddToInternalTickCounter);
-    void addMicrosToInternalTickCounter(uint16_t aMicrosecondsToAddToInternalTickCounter);
 
     bool available();
     IRData* read(); // returns decoded data
@@ -571,6 +569,7 @@ public:
 
     void sendRC5(uint8_t aAddress, uint8_t aCommand, int_fast8_t aNumberOfRepeats, bool aEnableAutomaticToggle = true);
     void sendRC6(uint8_t aAddress, uint8_t aCommand, int_fast8_t aNumberOfRepeats, bool aEnableAutomaticToggle = true);
+    void sendRC6A(uint8_t aAddress, uint8_t aCommand, int_fast8_t aNumberOfRepeats, uint16_t aCustomer, bool aEnableAutomaticToggle = true);
     void sendSamsungLGRepeat();
     void sendSamsung(uint16_t aAddress, uint16_t aCommand, int_fast8_t aNumberOfRepeats);
     void sendSamsung16BitAddressAnd8BitCommand(uint16_t aAddress, uint8_t aCommand, int_fast8_t aNumberOfRepeats);
