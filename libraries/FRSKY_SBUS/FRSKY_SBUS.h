@@ -1,6 +1,6 @@
 
-#ifndef FUTABA_SBUS_h
-#define FUTABA_SBUS_h
+#ifndef FRSKY_SBUS_h
+#define FRSKY_SBUS_h
 
 #include <Arduino.h>
 
@@ -29,7 +29,7 @@
 
 #define ALL_CHANNELS
 
-class FUTABA_SBUS
+class FRSKY_SBUS
 {
 	public:
 		uint8_t sbusData[SBUS_DATA_SIZE+1];

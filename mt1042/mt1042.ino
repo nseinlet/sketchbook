@@ -18,10 +18,10 @@
  * and screen display                          *
  *                                             *
  * Read channels values on SBus port (rx port) *
- * Read telemetry on port 13                   *
  * Manage ligths based on 1 channel            *
  * Patterns are 1,2 or 3 times up or down      *
- * Display them on a 1inch display             *
+ * Display them on a 0.49inch display          *
+ * Drive screen with channel 18                *
  ***********************************************/
  
 #include <Modelisme.h>
@@ -31,18 +31,6 @@
 #include "U8g2lib.h"
 
 U8G2_SSD1306_64X32_1F_F_HW_I2C u8g2(U8G2_R0, /* reset=*/ U8X8_PIN_NONE);
-
-/* Smartport */
-#include "FrSkySportSensor.h"
-#include "FrSkySportSensorFcs.h"
-#include "FrSkySportSingleWireSerial.h"
-#include "FrSkySportDecoder.h"
-#include "SoftwareSerial.h"
-#include "FrSkySportSensorXjt.h"
- 
-FrSkySportSensorFcs fcs;                               // FCS-40A sensor with default ID
-FrSkySportSensorXjt receiver;
-FrSkySportDecoder decoder;                             // Create decoder object without polling
 
 int angle=45;
 
@@ -58,20 +46,19 @@ void setup(void) {
   lm.setup(2, 3, 4, 5, 6, 7, 8);
   //Screen
   setupScreen();
-  //SmartPort
-  decoder.begin(FrSkySportSingleWireSerial::SOFT_SERIAL_PIN_13, &fcs, &receiver);
   //Sbus Decoder
-  rec.setup();
+  rec.setup(19);
   myservo[0].attach(9);
   myservo[1].attach(10);
   myservo[2].attach(11);
   myservo[3].attach(12);
-  myservo[4].attach(A0);
-  myservo[5].attach(A1);
-  myservo[6].attach(A2);
-  myservo[7].attach(A3);
-  myservo[8].attach(A6);
-  myservo[9].attach(A7);
+  myservo[4].attach(13);
+  myservo[5].attach(A0);
+  myservo[6].attach(A1);
+  myservo[7].attach(A2);
+  myservo[8].attach(A3);
+  myservo[9].attach(A6);
+  myservo[10].attach(A7);
 }
 
 void loop()
@@ -83,12 +70,13 @@ void loop()
     myservo[2].write(rec.channels[8].angle);
     myservo[3].write(rec.channels[9].angle);
     myservo[4].write(rec.channels[10].angle);
-    myservo[5].write(rec.channels[11].angle);
+    myservo[5].write(rec.channels[12].angle);
     myservo[6].write(rec.channels[13].angle);
     myservo[7].write(rec.channels[14].angle);
     myservo[8].write(rec.channels[15].angle);
+    myservo[9].write(rec.channels[16].angle);
+    myservo[10].write(rec.channels[17].angle);
   };
-
   //Manage ligths
   lm.checkLights(rec.channels[11].angle, rec.channels[2].angle, rec.channels[4].angle, rec.channels[1].angle);
   //Manage screen

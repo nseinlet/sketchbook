@@ -1,8 +1,8 @@
-#include <FUTABA_SBUS.h>
+#include <FRSKY_SBUS.h>
 #include <Streaming.h>
 
 
-FUTABA_SBUS sBus;
+FRSKY_SBUS sBus;
 
 
 void setup(){

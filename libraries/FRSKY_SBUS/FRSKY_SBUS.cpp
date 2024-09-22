@@ -1,12 +1,12 @@
-#include "FUTABA_SBUS.h"
+#include "FRSKY_SBUS.h"
 
-void FUTABA_SBUS::begin(){
+void FRSKY_SBUS::begin(){
 	uint8_t loc_sbusData[SBUS_DATA_SIZE+1] = {
-	  0x0f,0x01,0x04,0x20,0x00,0xff,0x07,0x40,0x00,0x02,0x10,0x80,0x2c,0x64,0x21,0x0b,0x59,0x08,0x40,0x00,0x02,0x10,0x80,0x00,0x00};
+	  0x0f,0x01,0x04,0x20,0x00,0xff,0x07,0x40,0x00,0x02,0x10,0x80,0x2c,0x64,0x21,0x0b,0x59,0x08,0x40,0x00,0x02,0x10,0x80,0x2c,0x64,0x21,0x0b,0x59,0x08,0x40,0x00,0x02,0x10,0x80,0x00,0x00};
 
   	port.begin(BAUDRATE);
 
-	memcpy(sbusData,loc_sbusData,SBUS_DATA_SIZE+1);
+	//memcpy(sbusData,loc_sbusData,SBUS_DATA_SIZE+1);
   for (int i=0;i<CHANNEL_SIZE;i++){
     channels[i] = 1023;
     servos[i] = 1023;
@@ -22,7 +22,7 @@ void FUTABA_SBUS::begin(){
 	feedState = 0;
 }
 
-int16_t FUTABA_SBUS::Channel(uint8_t ch) {
+int16_t FRSKY_SBUS::Channel(uint8_t ch) {
   // Read channel data
   if ((ch>0)&&(ch<=CHANNEL_SIZE-2)){
     return channels[ch-1];
@@ -31,7 +31,7 @@ int16_t FUTABA_SBUS::Channel(uint8_t ch) {
     return 1023;
   }
 }
-uint8_t FUTABA_SBUS::DigiChannel(uint8_t ch) {
+uint8_t FRSKY_SBUS::DigiChannel(uint8_t ch) {
   // Read digital channel data
   if ((ch>0) && (ch<=2)) {
     return channels[15+ch];
@@ -40,7 +40,7 @@ uint8_t FUTABA_SBUS::DigiChannel(uint8_t ch) {
     return 0;
   }
 }
-void FUTABA_SBUS::Servo(uint8_t ch, int16_t position) {
+void FRSKY_SBUS::Servo(uint8_t ch, int16_t position) {
   // Set servo position
   if ((ch>0)&&(ch<=CHANNEL_SIZE-2)) {
     if (position>2048) {
@@ -49,7 +49,7 @@ void FUTABA_SBUS::Servo(uint8_t ch, int16_t position) {
     servos[ch-1] = position;
   }
 }
-void FUTABA_SBUS::DigiServo(uint8_t ch, uint8_t position) {
+void FRSKY_SBUS::DigiServo(uint8_t ch, uint8_t position) {
   // Set digital servo position
   if ((ch>0) && (ch<=2)) {
     if (position>1) {
@@ -58,20 +58,20 @@ void FUTABA_SBUS::DigiServo(uint8_t ch, uint8_t position) {
     servos[15+ch] = position;
   }
 }
-uint8_t FUTABA_SBUS::Failsafe(void) {
+uint8_t FRSKY_SBUS::Failsafe(void) {
   return failsafe_status;
 }
 
-void FUTABA_SBUS::PassthroughSet(int mode) {
+void FRSKY_SBUS::PassthroughSet(int mode) {
   // Set passtrough mode, if true, received channel data is send to servos
   sbus_passthrough = mode;
 }
 
-int FUTABA_SBUS::PassthroughRet(void) {
+int FRSKY_SBUS::PassthroughRet(void) {
   // Return current passthrough mode
   return sbus_passthrough;
 }
-void FUTABA_SBUS::UpdateServos(void) {
+void FRSKY_SBUS::UpdateServos(void) {
   // Send data to servos
   // Passtrough mode = false >> send own servo data
   // Passtrough mode = true >> send received channel data
@@ -131,7 +131,7 @@ void FUTABA_SBUS::UpdateServos(void) {
     port.write(sbusData[i]);
   }
 }
-void FUTABA_SBUS::UpdateChannels(void) {
+void FRSKY_SBUS::UpdateChannels(void) {
 
   channels[0]  = ((sbusData[1]|sbusData[2]<< 8) & 0x07FF);
   channels[1]  = ((sbusData[2]>>3|sbusData[3]<<5) & 0x07FF);
@@ -141,7 +141,7 @@ void FUTABA_SBUS::UpdateChannels(void) {
   channels[5]  = ((sbusData[7]>>7|sbusData[8]<<1|sbusData[9]<<9) & 0x07FF);
   channels[6]  = ((sbusData[9]>>2|sbusData[10]<<6) & 0x07FF);
   channels[7]  = ((sbusData[10]>>5|sbusData[11]<<3) & 0x07FF); // & the other 8 + 2 channels if you need them
-  #ifdef ALL_CHANNELS
+  #ifdef ALL_CHANNELS || ACCESS_24
   channels[8]  = ((sbusData[12]|sbusData[13]<< 8) & 0x07FF);
   channels[9]  = ((sbusData[13]>>3|sbusData[14]<<5) & 0x07FF);
   channels[10] = ((sbusData[14]>>6|sbusData[15]<<2|sbusData[16]<<10) & 0x07FF);
@@ -172,7 +172,7 @@ void FUTABA_SBUS::UpdateChannels(void) {
   }
 
 }
-void FUTABA_SBUS::FeedLine(void){
+void FRSKY_SBUS::FeedLine(void){
   if (port.available() > SBUS_DATA_SIZE){
     while(port.available() > 0){
       inData = port.read();
