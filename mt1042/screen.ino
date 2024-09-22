@@ -99,6 +99,18 @@ void drawScreen2() {
 };
 
 void drawScreen3() {
+  //Servo outputs 17->24
+  int i;
+
+  for (i=16;i<24;i++) {
+    _drawServo(2+(i-16)*8, rec.channels[i].angle);
+  };
+    
+  u8g2.setFont(u8g2_font_4x6_tf);
+  u8g2.drawStr( 0, 32, "1718192021222324");
+};
+
+void drawScreen4() {
   // Lights
   u8g2.setFont(u8g2_font_cursor_tf);
   if ((lm.lWarn || lm.warnings) && lm.blinkstate) {
@@ -124,20 +136,7 @@ void drawScreen3() {
   };
 };
 
-void drawScreen4() {
-  u8g2.setFont(u8g2_font_5x7_tf);
-  u8g2.drawStr( 1, 8, (String(fcs.getCurrent())+" A").c_str());
-  u8g2.drawStr( 1, 16, (String(fcs.getVoltage())+" V").c_str());
-
-  u8g2.drawStr( 1, 24, (String(receiver.getRxBatt())+" V").c_str());
-  u8g2.drawStr( 1, 32, (String(receiver.getAdc2())+" V").c_str());
-
-};
-
 void drawScreen5() {
-  u8g2.setFont(u8g2_font_5x7_tf);
-  u8g2.drawStr( 18, 26, (String(fcs.getCurrent())+"A").c_str());
-
   //Power gauge
   u8g2.drawCircle(32, 32, 30, U8G2_DRAW_UPPER_RIGHT|U8G2_DRAW_UPPER_LEFT);
   u8g2.drawCircle(32, 32, 29, U8G2_DRAW_UPPER_RIGHT|U8G2_DRAW_UPPER_LEFT);

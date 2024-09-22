@@ -5,11 +5,17 @@
 
 #include "Arduino.h"
 #include "Modelisme.h"
-#include <FUTABA_SBUS.h>
 
 void Receiver::setup()
 {
   sBus.begin();
+  max_channels=24;
+}
+
+void Receiver::setup(int max_channel)
+{
+  sBus.begin();
+  max_channels = max_channel;
 }
 
 int Receiver::read()
@@ -20,7 +26,7 @@ int Receiver::read()
     sBus.UpdateChannels();
     sBus.toChannels = 0;
 
-    for (int x=0; x<16; x++) {
+    for (int x=0; x<max_channels; x++) {
       channels[x].when = millis();
       channels[x].pwmvalue = sBus.channels[x];
       channels[x].angle = channels[x].pwmToDeg();

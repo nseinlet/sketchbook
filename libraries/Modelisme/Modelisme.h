@@ -24,7 +24,13 @@
 #define MAX_LM_HISTORY 5
 
 #include "Arduino.h"
-#include <FUTABA_SBUS.h>
+#include <FRSKY_SBUS.h>
+
+#if defined(ACCESS_24)
+  #define RECEIVER_CHANNELS 24
+#else
+  #define RECEIVER_CHANNELS 16
+#endif
 
 class ReceiverCanal {
   public:
@@ -38,13 +44,15 @@ class ReceiverCanal {
 
 class Receiver {
   public:
-    ReceiverCanal channels[16];
+    ReceiverCanal channels[RECEIVER_CHANNELS];
 
     void setup();
+    void setup(int);
     int read();
 
   private:
-    FUTABA_SBUS sBus;
+    FRSKY_SBUS sBus;
+    int max_channels;
 };
 
 class LightManagerHistoryLine {
