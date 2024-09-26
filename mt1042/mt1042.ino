@@ -25,62 +25,43 @@
  ***********************************************/
  
 #include <Modelisme.h>
-#include <Servo.h>
-
-/* Display */
-#include "U8g2lib.h"
-
-U8G2_SSD1306_64X32_1F_F_HW_I2C u8g2(U8G2_R0, /* reset=*/ U8X8_PIN_NONE);
-
-int angle=45;
+#include <ReceiverDisplay.h>
 
 Receiver rec;
 LightManager lm;
+ReceiverDisplay screen("MT 1042", 24);
 
-Servo myservo[12];
 
 void setup(void) {
   debugSetup();
-
   //Manage lights
   lm.setup(2, 3, 4, 5, 6, 7, 8);
   //Screen
-  setupScreen();
+  screen.setup(&rec, &lm);
   //Sbus Decoder
   rec.setup(19);
-  myservo[0].attach(9);
-  myservo[1].attach(10);
-  myservo[2].attach(11);
-  myservo[3].attach(12);
-  myservo[4].attach(13);
-  myservo[5].attach(A0);
-  myservo[6].attach(A1);
-  myservo[7].attach(A2);
-  myservo[8].attach(A3);
-  myservo[9].attach(A6);
-  myservo[10].attach(A7);
+  //Servos
+  rec.servoPins[0] = 9; rec.servoChannels[0] = 6;
+  rec.servoPins[1] = 10;rec.servoChannels[1] = 7;
+  rec.servoPins[2] = 11;rec.servoChannels[2] = 8;
+  rec.servoPins[3] = 12;rec.servoChannels[3] = 9;
+  rec.servoPins[4] = 13;rec.servoChannels[4] = 10;
+  rec.servoPins[5] = A0;rec.servoChannels[5] = 12;
+  rec.servoPins[6] = A1;rec.servoChannels[6] = 13;
+  rec.servoPins[7] = A2;rec.servoChannels[7] = 14;
+  rec.servoPins[8] = A3;rec.servoChannels[8] = 15;
+  rec.servoPins[9] = A6;rec.servoChannels[9] = 16;
+  rec.servoPins[10]= A7;rec.servoChannels[10]= 17;
 }
 
 void loop()
 { 
   delay(50);
-  if (rec.read()==1){
-    myservo[0].write(rec.channels[6].angle);
-    myservo[1].write(rec.channels[7].angle);
-    myservo[2].write(rec.channels[8].angle);
-    myservo[3].write(rec.channels[9].angle);
-    myservo[4].write(rec.channels[10].angle);
-    myservo[5].write(rec.channels[12].angle);
-    myservo[6].write(rec.channels[13].angle);
-    myservo[7].write(rec.channels[14].angle);
-    myservo[8].write(rec.channels[15].angle);
-    myservo[9].write(rec.channels[16].angle);
-    myservo[10].write(rec.channels[17].angle);
-  };
+  rec.read();
   //Manage ligths
   lm.checkLights(rec.channels[11].angle, rec.channels[2].angle, rec.channels[4].angle, rec.channels[1].angle);
   //Manage screen
-  drawScreen();
+  screen.loop();
 
   debugLoop();
 }

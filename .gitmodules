@@ -1,0 +1,3 @@
+[submodule "libraries/Modelisme"]
+	path = libraries/Modelisme
+	url = git@github.com:nseinlet/Modelisme.git

@@ -14,4 +14,16 @@ void debugLoop() {
     };
     Serial.println();
   }
+  if (debug==2){
+    //Serial.print(rec.get_sBus_failsafe_status());
+    Serial.print('\t');
+    Serial.print(SBUS_SIGNAL_OK);
+    Serial.print('\t');
+    Serial.print(SBUS_SIGNAL_LOST);
+    Serial.print('\t');
+    Serial.print(SBUS_SIGNAL_FAILSAFE);
+    Serial.print('\t');
+    Serial.print(SBUS_NO_SIGNAL);
+    Serial.println();
+  }
 }
