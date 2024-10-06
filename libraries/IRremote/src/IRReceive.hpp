@@ -62,6 +62,7 @@ IRrecv IrReceiver;
  * The control structure instance
  */
 struct irparams_struct irparams; // the irparams instance
+unsigned long sMicrosAtLastStopTimer = 0; // Used to adjust TickCounterForISR with uncounted ticks between stopTimer() and restartTimer()
 
 /**
  * Instantiate the IRrecv class. Multiple instantiation is not supported.
@@ -117,6 +118,8 @@ IRrecv::IRrecv(uint_fast8_t aReceivePin, uint_fast8_t aFeedbackLEDPin) {
  *
  **********************************************************************************************************************/
 #if defined(ESP8266) || defined(ESP32)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wvolatile"
 IRAM_ATTR
 #endif
 void IRReceiveTimerInterruptHandler() {
@@ -224,10 +227,12 @@ void IRReceiveTimerInterruptHandler() {
              * After resume(), decodedIRData.rawDataPtr->initialGapTicks and decodedIRData.rawDataPtr->rawlen are
              * the first variables, which are overwritten by the next received frame.
              * since 4.3.0.
+             * For backward compatibility, there are the same 2 statements in decode() if IrReceiver is not used.
              */
             IrReceiver.decodedIRData.initialGapTicks = irparams.initialGapTicks;
             IrReceiver.decodedIRData.rawlen = irparams.rawlen;
-            irparams.StateForISR = IR_REC_STATE_STOP;
+
+            irparams.StateForISR = IR_REC_STATE_STOP; // This signals the decode(), that a complete frame was received
 #if !defined(IR_REMOTE_DISABLE_RECEIVE_COMPLETE_CALLBACK)
             /*
              * Call callback if registered (not NULL)
@@ -252,7 +257,7 @@ void IRReceiveTimerInterruptHandler() {
     }
 
 #if !defined(NO_LED_FEEDBACK_CODE)
-    if (FeedbackLEDControl.LedFeedbackEnabled == LED_FEEDBACK_ENABLED_FOR_RECEIVE) {
+    if (FeedbackLEDControl.LedFeedbackEnabled & LED_FEEDBACK_ENABLED_FOR_RECEIVE) {
         setFeedbackLED(tIRInputLevel == INPUT_MARK);
     }
 #endif
@@ -375,6 +380,10 @@ void IRrecv::restartTimer() {
     // Setup for cyclic 50 us interrupt
     timerConfigForReceive(); // no interrupts enabled here!
     // Timer interrupt is enabled after state machine reset
+    if (sMicrosAtLastStopTimer != 0) {
+        irparams.TickCounterForISR += (micros() - sMicrosAtLastStopTimer) / MICROS_PER_TICK; // adjust TickCounterForISR for correct gap value, which is used for repeat detection
+        sMicrosAtLastStopTimer = 0;
+    }
     timerEnableReceiveInterrupt(); // Enables the receive sample timer interrupt which consumes a small amount of CPU every 50 us.
 #ifdef _IR_MEASURE_TIMING
     pinModeFast(_IR_TIMING_TEST_PIN, OUTPUT);
@@ -389,33 +398,34 @@ void IRrecv::enableIRIn() {
 
 /**
  * Configures the timer and the state machine for IR reception.
+ * We assume, that timer interrupts are disabled here, otherwise it makes no sense to use this functions.
+ * Therefore we do not need to guard the change of the volatile TickCounterForISR here :-).
  * The tick counter value is already at 100 when decode() gets true, because of the 5000 us minimal gap defined in RECORD_GAP_MICROS.
+ * If TickCounterForISR is not adjusted with the value of the microseconds, the timer was stopped,
+ * it can happen, that a new IR frame is recognized as a repeat, because the value of RECORD_GAP_MICROS
+ * was not reached by TickCounterForISR counter before receiving the new IR frame.
  * @param aMicrosecondsToAddToGapCounter To compensate for the amount of microseconds the timer was stopped / disabled.
  */
-void IRrecv::start(uint32_t aMicrosecondsToAddToGapCounter) {
-    irparams.TickCounterForISR += aMicrosecondsToAddToGapCounter / MICROS_PER_TICK;
-    start();
-}
 void IRrecv::restartTimer(uint32_t aMicrosecondsToAddToGapCounter) {
     irparams.TickCounterForISR += aMicrosecondsToAddToGapCounter / MICROS_PER_TICK;
-    restartTimer();
-}
-void IRrecv::startWithTicksToAdd(uint16_t aTicksToAddToGapCounter) {
-    irparams.TickCounterForISR += aTicksToAddToGapCounter;
-    start();
+    timerConfigForReceive(); // no interrupts enabled here!
+    timerEnableReceiveInterrupt(); // Enables the receive sample timer interrupt which consumes a small amount of CPU every 50 us.
+#ifdef _IR_MEASURE_TIMING
+    pinModeFast(_IR_TIMING_TEST_PIN, OUTPUT);
+#endif
 }
 void IRrecv::restartTimerWithTicksToAdd(uint16_t aTicksToAddToGapCounter) {
     irparams.TickCounterForISR += aTicksToAddToGapCounter;
-    restartTimer();
+    timerConfigForReceive(); // no interrupts enabled here!
+    timerEnableReceiveInterrupt(); // Enables the receive sample timer interrupt which consumes a small amount of CPU every 50 us.
+#ifdef _IR_MEASURE_TIMING
+    pinModeFast(_IR_TIMING_TEST_PIN, OUTPUT);
+#endif
 }
+#if defined(ESP8266) || defined(ESP32)
+#pragma GCC diagnostic push
+#endif
 
-void IRrecv::addTicksToInternalTickCounter(uint16_t aTicksToAddToInternalTickCounter) {
-    irparams.TickCounterForISR += aTicksToAddToInternalTickCounter;
-}
-
-void IRrecv::addMicrosToInternalTickCounter(uint16_t aMicrosecondsToAddToInternalTickCounter) {
-    irparams.TickCounterForISR += aMicrosecondsToAddToInternalTickCounter / MICROS_PER_TICK;
-}
 /**
  * Restarts receiver after send. Is a NOP if sending does not require a timer.
  */
@@ -432,8 +442,12 @@ void IRrecv::stop() {
     timerDisableReceiveInterrupt();
 }
 
+/*
+ * Stores microseconds of stop, to adjust TickCounterForISR in restartTimer()
+ */
 void IRrecv::stopTimer() {
     timerDisableReceiveInterrupt();
+    sMicrosAtLastStopTimer = micros();
 }
 /**
  * Alias for stop().
@@ -526,6 +540,14 @@ IRData* IRrecv::read() {
 bool IRrecv::decode() {
     if (irparams.StateForISR != IR_REC_STATE_STOP) {
         return false;
+    }
+
+    /*
+     * Support for old examples, which do not use the default IrReceiver instance
+     */
+    if (this != &IrReceiver) {
+        decodedIRData.initialGapTicks = irparams.initialGapTicks;
+        decodedIRData.rawlen = irparams.rawlen;
     }
 
     initDecodedIRData(); // sets IRDATA_FLAGS_WAS_OVERFLOW
@@ -1530,11 +1552,11 @@ void IRrecv::printIRSendUsage(Print *aSerial) {
             /*
              * Pulse distance or pulse width here
              */
-            aSerial->print("PulseDistanceWidth");
+            aSerial->print(F("PulseDistanceWidth"));
             if(tNumberOfArrayData > 1) {
-                aSerial->print("FromArray(38, ");
+                aSerial->print(F("FromArray(38, "));
             } else {
-                aSerial->print("(38, ");
+                aSerial->print(F("(38, "));
             }
             printDistanceWidthTimingInfo(aSerial, &decodedIRData.DistanceWidthTimingInfo);
 
@@ -1560,8 +1582,8 @@ void IRrecv::printIRSendUsage(Print *aSerial) {
             aSerial->print(F("SB_FIRST, <RepeatPeriodMillis>, <numberOfRepeats>"));
         }
 #endif
-#if defined(DECODE_PANASONIC) || defined(DECODE_KASEIKYO)
-        if ((decodedIRData.flags & IRDATA_FLAGS_EXTRA_INFO) && decodedIRData.protocol == KASEIKYO) {
+#if defined(DECODE_PANASONIC) || defined(DECODE_KASEIKYO) || defined(DECODE_RC6)
+        if ((decodedIRData.flags & IRDATA_FLAGS_EXTRA_INFO) && (decodedIRData.protocol == KASEIKYO || decodedIRData.protocol == RC6A)) {
             aSerial->print(F(", 0x"));
             aSerial->print(decodedIRData.extra, HEX);
         }
@@ -1695,7 +1717,7 @@ void IRrecv::printIRResultRawFormatted(Print *aSerial, bool aOutputMicrosecondsI
     }
 
     aSerial->println();
-    aSerial->print("Sum: ");
+    aSerial->print(F("Sum: "));
     if (aOutputMicrosecondsInsteadOfTicks) {
         aSerial->println((uint32_t) tSumOfDurationTicks * MICROS_PER_TICK, DEC);
     } else {
@@ -1758,7 +1780,7 @@ void IRrecv::compensateAndPrintIRResultAsCArray(Print *aSerial, bool aOutputMicr
     printIRResultShort(aSerial);
 
 // Newline
-    aSerial->println("");
+    aSerial->println();
 }
 
 /**
