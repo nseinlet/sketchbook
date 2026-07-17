@@ -8,7 +8,7 @@
  ************************************************************************************
  * MIT License
  *
- * Copyright (c) 2020-2024 Armin Joachimsmeyer
+ * Copyright (c) 2020-2026 Armin Joachimsmeyer
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -32,43 +32,81 @@
 #ifndef _IR_PROTOCOL_H
 #define _IR_PROTOCOL_H
 
+#include <stdint.h>
+
+/*
+ * If activated, BANG_OLUFSEN, BOSEWAVE, MAGIQUEST, WHYNTER, FAST and LEGO_PF are excluded in decoding and in sending with IrSender.write
+ */
+//#define EXCLUDE_EXOTIC_PROTOCOLS
+/*
+ * Supported IR protocols
+ * Each protocol you include costs memory and, during decode, costs time
+ * Copy the lines with the protocols you need in your program before the  #include <IRremote.hpp> line
+ * See also SimpleReceiver example
+ */
+
+// For backward compatibility
+#if defined(DECODE_PANASONIC)
+#define DECODE_KASEIKYO
+#endif
+
+#if !defined(NO_DECODER) // for sending raw only
+#  if (!(defined(DECODE_DENON) || defined(DECODE_JVC) || defined(DECODE_KASEIKYO) \
+|| defined(DECODE_PANASONIC) || defined(DECODE_LG) || defined(DECODE_NEC) || defined(DECODE_ONKYO) || defined(DECODE_SAMSUNG) \
+|| defined(DECODE_SONY) || defined(DECODE_RC5) || defined(DECODE_RC6) \
+|| defined(DECODE_DISTANCE_WIDTH) || defined(DECODE_HASH) || defined(DECODE_BOSEWAVE) \
+|| defined(DECODE_LEGO_PF) || defined(DECODE_MAGIQUEST) || defined(DECODE_WHYNTER) || defined(DECODE_MARANTZ) || defined(DECODE_FAST) \
+|| defined(DECODE_OPENLASIR)))
+/*
+ * If no protocol is explicitly enabled, we enable all protocols
+ * In alphabetic order:
+ */
+#define DECODE_DENON        // Includes Sharp - requires around 250 bytes of program memory on ATmega328
+#define DECODE_JVC          // ~ 200 bytes
+#define DECODE_KASEIKYO     // Includes Panasonic ~ 300 bytes
+#define DECODE_LG           // ~ 400 bytes
+#define DECODE_NEC          // Includes Apple and Onkyo ~ 250 bytes
+#define DECODE_SAMSUNG      // ~ 300 bytes
+#define DECODE_SONY         // ~ 175 bytes
+#define DECODE_RC5          // RC5 + MARANTZ: ~ 425 bytes
+#define DECODE_RC6          // ~ 375 bytes
+
+#    if !defined(EXCLUDE_EXOTIC_PROTOCOLS) // saves around 2000 bytes program memory
+#define DECODE_BOSEWAVE     // ~ 140 bytes
+#define DECODE_FAST         // ~ 135 bytes
+#define DECODE_LEGO_PF      // ~ 300 bytes
+#define DECODE_MAGIQUEST    // ~ 270 bytes
+#define DECODE_MARANTZ      // RC5 + MARANTZ: ~ 425 bytes
+#define DECODE_OPENLASIR    // Modified NEC with 8-bit validated address + 16-bit command. ~ 175 bytes
+#define DECODE_WHYNTER      // ~ 90 bytes
+#    endif
+
+#    if !defined(EXCLUDE_UNIVERSAL_PROTOCOLS)
+#define DECODE_DISTANCE_WIDTH // Universal decoder for pulse distance width protocols ~ 2275 bytes
+#define DECODE_HASH         // special decoder for all protocols ~ 250 bytes
+#    endif
+#  endif
+#endif // !defined(NO_DECODER)
+
+//#define DECODE_BEO // Bang & Olufsen protocol always must be enabled explicitly. It prevents decoding of SONY!
+
+#if defined(DECODE_NEC) && !(~(~DECODE_NEC + 0) == 0 && ~(~DECODE_NEC + 1) == 1)
+#warning "The macros DECODE_XXX no longer require a value. Decoding is now switched by defining / non defining the macro."
+#endif
+
 /**
  * An enum consisting of all supported formats.
  * You do NOT need to remove entries from this list when disabling protocols!
- * !!!Must be the same order as ProtocolNames in IRReceive.hpp!!!
+ * !!!Must be the same order as ProtocolNames in IRProtocol.hpp!!!
  */
 typedef enum {
-    UNKNOWN = 0,
-    PULSE_WIDTH,
-    PULSE_DISTANCE,
-    APPLE,
-    DENON,
-    JVC,
-    LG,
-    LG2,
-    NEC,
-    NEC2, /* 10 NEC with full frame as repeat */
-    ONKYO,
-    PANASONIC,
-    KASEIKYO,
-    KASEIKYO_DENON,
-    KASEIKYO_SHARP,
-    KASEIKYO_JVC,
-    KASEIKYO_MITSUBISHI,
-    RC5,
-    RC6,
-    SAMSUNG, /* 20*/
-    SAMSUNGLG,
-    SAMSUNG48,
-    SHARP,
-    SONY,
+    UNKNOWN = 0, PULSE_WIDTH, PULSE_DISTANCE, APPLE, DENON, JVC, LG, NEC, NEC2, ONKYO, /* 10 entries */
+    PANASONIC, KASEIKYO, KASEIKYO_DENON, KASEIKYO_SHARP, KASEIKYO_JVC, KASEIKYO_MITSUBISHI, RC5, RC6, RC6A, /*31 bit +  3 fixed 0b110 mode bits*/
+    SAMSUNG, /* 10 entries */
+    SAMSUNGLG, SAMSUNG48, SHARP, SONY,
     /* Now the exotic protocols */
-    BANG_OLUFSEN,
-    BOSEWAVE,
-    LEGO_PF,
-    MAGIQUEST,
-    WHYNTER, /* 30 */
-    FAST
+    BANG_OLUFSEN, BOSEWAVE, LEGO_PF, MAGIQUEST, WHYNTER, MARANTZ,/* 10 entries */
+    FAST, OPENLASIR, OTHER
 } decode_type_t;
 extern const char *const ProtocolNames[]; // The array of name strings for the decode_type_t enum
 
@@ -99,53 +137,30 @@ struct DistanceWidthTimingInfoStruct {
 #define IRDATA_FLAGS_WAS_OVERFLOW       0x40 ///< irparams.rawlen is set to 0 in this case to avoid endless OverflowFlag.
 #define IRDATA_FLAGS_IS_MSB_FIRST       0x80 ///< Value is mainly determined by the (known) protocol.
 #define IRDATA_FLAGS_IS_LSB_FIRST       0x00
+#define IRDATA_FLAGS_LSB_MSB_FIRST_MASK IRDATA_FLAGS_IS_MSB_FIRST
 
-#define RAW_DATA_ARRAY_SIZE             ((((RAW_BUFFER_LENGTH - 2) - 1) / (2 * BITS_IN_RAW_DATA_TYPE)) + 1) // The -2 is for initial gap + stop bit mark, 128 mark + spaces for 64 bit.
-/**
- * Data structure for the user application, available as decodedIRData.
- * Filled by decoders and read by print functions or user application.
- */
-struct IRData {
-    decode_type_t protocol; ///< UNKNOWN, NEC, SONY, RC5, PULSE_DISTANCE, ...
-    uint16_t address; ///< Decoded address, Distance protocol (tMarkTicksLong (if tMarkTicksLong == 0, then tMarkTicksShort) << 8) | tSpaceTicksLong
-    uint16_t command;       ///< Decoded command, Distance protocol (tMarkTicksShort << 8) | tSpaceTicksShort
-    uint16_t extra; ///< Contains upper 16 bit of Magiquest WandID, Kaseikyo unknown vendor ID and Distance protocol (HeaderMarkTicks << 8) | HeaderSpaceTicks.
-    IRRawDataType decodedRawData; ///< Up to 32/64 bit decoded raw data, to be used for send functions.
-#if defined(DECODE_DISTANCE_WIDTH)
-    // This replaces the address, command, extra and decodedRawData in case of protocol == PULSE_DISTANCE or -rather seldom- protocol == PULSE_WIDTH.
-    DistanceWidthTimingInfoStruct DistanceWidthTimingInfo; // 12 bytes
-    IRRawDataType decodedRawDataArray[RAW_DATA_ARRAY_SIZE]; ///< 32/64 bit decoded raw data, to be used for send function.
-#endif
-    uint16_t numberOfBits; ///< Number of bits received for data (address + command + parity) - to determine protocol length if different length are possible.
-    uint8_t flags;          ///< IRDATA_FLAGS_IS_REPEAT, IRDATA_FLAGS_WAS_OVERFLOW etc. See IRDATA_FLAGS_* definitions above
-
-    /*
-     * These 2 variables allow to call resume() directly after decode.
-     * After resume(), decodedIRData.rawDataPtr->initialGapTicks and decodedIRData.rawDataPtr->rawlen are
-     * the first variables, which are overwritten by the next received frame.
-     * since 4.3.0.
-     */
-    IRRawlenType rawlen;        ///< counter of entries in rawbuf of last received frame.
-    uint16_t initialGapTicks;   ///< contains the initial gap (pre 4.4: the value in rawbuf[0]) of the last received frame.
-
-    irparams_struct *rawDataPtr; ///< Pointer of the raw timing data to be decoded. Mainly the OverflowFlag and the data buffer filled by receiving ISR.
-};
+extern uint8_t sLastSendToggleValue; // Currently used by RC5 + RC6
 
 struct PulseDistanceWidthProtocolConstants {
     decode_type_t ProtocolIndex;
     uint_fast8_t FrequencyKHz;
     DistanceWidthTimingInfoStruct DistanceWidthTimingInfo;
     uint8_t Flags;
-    unsigned int RepeatPeriodMillis;
+    unsigned int RepeatPeriodMillis; // Time between start of two frames. Thus independent from frame length.
     void (*SpecialSendRepeatFunction)(); // using non member functions here saves up to 250 bytes for send demo
 //    void (IRsend::*SpecialSendRepeatFunction)();
 };
 /*
  * Definitions for member PulseDistanceWidthProtocolConstants.Flags
  */
-#define SUPPRESS_STOP_BIT       0x20 // Stop bit is otherwise sent for all pulse distance protocols, i.e. aOneSpaceMicros != aZeroSpaceMicros.
-#define PROTOCOL_IS_MSB_FIRST   IRDATA_FLAGS_IS_MSB_FIRST
-#define PROTOCOL_IS_LSB_FIRST   IRDATA_FLAGS_IS_LSB_FIRST
+#define PROTOCOL_IS_PULSE_DISTANCE      0x00
+#define PROTOCOL_IS_PULSE_DISTANCE_WIDTH 0x00 // Can often be decoded successfully as pulse distance
+#define PROTOCOL_IS_PULSE_WIDTH         0x10  // Currently only Sony protocol
+#define PROTOCOL_IS_PULSE_WIDTH_MASK    PROTOCOL_IS_PULSE_WIDTH
+#define SUPPRESS_STOP_BIT               0x20 // Stop bit is otherwise sent for all pulse distance protocols, i.e. aOneSpaceMicros != aZeroSpaceMicros.
+#define PROTOCOL_IS_MSB_FIRST           IRDATA_FLAGS_IS_MSB_FIRST
+#define PROTOCOL_IS_LSB_FIRST           IRDATA_FLAGS_IS_LSB_FIRST
+#define PROTOCOL_IS_MSB_MASK            IRDATA_FLAGS_IS_MSB_FIRST
 
 /*
  * Carrier frequencies for various protocols
@@ -159,6 +174,7 @@ struct PulseDistanceWidthProtocolConstants {
 #define JVC_KHZ         38
 #define LG_KHZ          38
 #define NEC_KHZ         38
+#define OPENLASIR_KHZ   38
 #define SAMSUNG_KHZ     38
 #define KASEIKYO_KHZ    37
 #define RC5_RC6_KHZ     36
@@ -168,7 +184,6 @@ const __FlashStringHelper* getProtocolString(decode_type_t aProtocol);
 #else
 const char* getProtocolString(decode_type_t aProtocol);
 #endif
-void printIRResultShort(Print *aSerial, IRData *aIRDataPtr, bool aPrintGap); // A static function to be able to print send or copied received data.
 
 /*
  * Convenience functions to convert MSB to LSB values

@@ -9,7 +9,7 @@
  ************************************************************************************
  * MIT License
  *
- * Copyright (c) 2023 Armin Joachimsmeyer
+ * Copyright (c) 2023-2026 Armin Joachimsmeyer
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -35,11 +35,9 @@
 
 #include "TinyIR.h"
 
-#if defined(DEBUG) && !defined(LOCAL_DEBUG)
-#define LOCAL_DEBUG
-#else
-//#define LOCAL_DEBUG // This enables debug output only for this file
-#endif
+// This block must be located after the includes of other *.hpp files
+//#define LOCAL_DEBUG // This enables debug output only for this file - only for development
+#include "LocalDebugLevelStart.h"
 
 /** \addtogroup Decoder Decoders and encoders for different protocols
  * @{
@@ -54,18 +52,18 @@
 //==============================================================================
 #include "TinyIR.h"
 /*
-Protocol=FAST Address=0x0 Command=0x76 Raw-Data=0x8976 16 bits LSB first
+ Protocol=FAST Address=0x0 Command=0x76 Raw-Data=0x8976 16 bits LSB first
  +2100,-1050
  + 550,- 500 + 550,-1550 + 550,-1550 + 550,- 500
  + 550,-1550 + 550,-1550 + 550,-1550 + 550,- 500
  + 550,-1550 + 550,- 500 + 550,- 500 + 550,-1550
  + 550,- 500 + 550,- 500 + 550,- 500 + 550,-1550
  + 550
-Sum: 28900
-*/
-struct PulseDistanceWidthProtocolConstants FASTProtocolConstants = { FAST, FAST_KHZ, FAST_HEADER_MARK, FAST_HEADER_SPACE,
-FAST_BIT_MARK, FAST_ONE_SPACE, FAST_BIT_MARK, FAST_ZERO_SPACE, PROTOCOL_IS_LSB_FIRST, (FAST_REPEAT_PERIOD / MICROS_IN_ONE_MILLI),
-NULL };
+ Sum: 28900
+ */
+struct PulseDistanceWidthProtocolConstants const FASTProtocolConstants PROGMEM = { FAST, FAST_KHZ, FAST_HEADER_MARK,
+FAST_HEADER_SPACE, FAST_BIT_MARK, FAST_ONE_SPACE, FAST_BIT_MARK, FAST_ZERO_SPACE, PROTOCOL_IS_LSB_FIRST
+        | PROTOCOL_IS_PULSE_DISTANCE, (FAST_REPEAT_PERIOD / MICROS_IN_ONE_MILLI), nullptr };
 
 /************************************
  * Start of send and decode functions
@@ -84,7 +82,7 @@ void IRsend::sendFAST(uint8_t aCommand, int_fast8_t aNumberOfRepeats) {
         mark(FAST_HEADER_MARK);
         space(FAST_HEADER_SPACE);
 
-        sendPulseDistanceWidthData(&FASTProtocolConstants, aCommand | (((uint8_t)(~aCommand)) << 8), FAST_BITS);
+        sendPulseDistanceWidthData_P(&FASTProtocolConstants, aCommand | (((uint8_t)(~aCommand)) << 8), FAST_BITS);
 
         tNumberOfCommands--;
         // skip last delay!
@@ -101,38 +99,28 @@ bool IRrecv::decodeFAST() {
 
     // Check we have the right amount of data (36). The +4 is for initial gap, start bit mark and space + stop bit mark.
     if (decodedIRData.rawlen != ((2 * FAST_BITS) + 4)) {
-        IR_DEBUG_PRINT(F("FAST: "));
-        IR_DEBUG_PRINT(F("Data length="));
-        IR_DEBUG_PRINT(decodedIRData.rawlen);
-        IR_DEBUG_PRINTLN(F(" is not 36"));
+        DEBUG_PRINT(F("FAST: Data length="));
+        DEBUG_PRINT(decodedIRData.rawlen);
+        DEBUG_PRINTLN(F(" is not 36"));
         return false;
     }
 
-    if (!checkHeader(&FASTProtocolConstants)) {
+    if (!checkHeader_P(&FASTProtocolConstants)) {
         return false;
     }
 
-    if (!decodePulseDistanceWidthData(&FASTProtocolConstants, FAST_BITS)) {
-#if defined(LOCAL_DEBUG)
-        Serial.print(F("FAST: "));
-        Serial.println(F("Decode failed"));
-#endif
-        return false;
-    }
-
+    decodePulseDistanceWidthData_P(&FASTProtocolConstants, FAST_BITS);
     WordUnion tValue;
     tValue.UWord = decodedIRData.decodedRawData;
 
-    if (tValue.UByte.LowByte != (uint8_t)~(tValue.UByte.HighByte)) {
-#if defined(LOCAL_DEBUG)
-        Serial.print(F("FAST: "));
-        Serial.print(F("8 bit parity is not correct. Expected=0x"));
-        Serial.print((uint8_t)~(tValue.UByte.LowByte), HEX);
-        Serial.print(F(" received=0x"));
-        Serial.print(tValue.UByte.HighByte, HEX);
-        Serial.print(F(" data=0x"));
-        Serial.println(tValue.UWord, HEX);
-#endif
+    if (tValue.UByte.LowByte != (uint8_t) ~(tValue.UByte.HighByte)) {
+        DEBUG_PRINT(F("FAST: 8 bit parity is not correct. Expected=0x"));
+        DEBUG_PRINT((uint8_t) ~(tValue.UByte.LowByte), HEX);
+        DEBUG_PRINT(F(" received=0x"));
+        DEBUG_PRINT(tValue.UByte.HighByte, HEX);
+        DEBUG_PRINT(F(" data=0x"));
+        DEBUG_PRINTLN(tValue.UWord, HEX);
+
         decodedIRData.flags = IRDATA_FLAGS_PARITY_FAILED;
     }
 
@@ -149,7 +137,6 @@ bool IRrecv::decodeFAST() {
 }
 
 /** @}*/
-#if defined(LOCAL_DEBUG)
-#undef LOCAL_DEBUG
-#endif
+#include "LocalDebugLevelEnd.h"
+
 #endif // _IR_FAST_HPP

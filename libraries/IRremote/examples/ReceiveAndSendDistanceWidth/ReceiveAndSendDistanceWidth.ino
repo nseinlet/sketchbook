@@ -23,7 +23,7 @@
  ************************************************************************************
  * MIT License
  *
- * Copyright (c) 2023 Armin Joachimsmeyer
+ * Copyright (c) 2023-2025 Armin Joachimsmeyer
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -46,21 +46,18 @@
  */
 #include <Arduino.h>
 
-#include "PinDefinitionsAndMore.h" // Define macros for input and output pin etc.
-#if !defined(IR_SEND_PIN)
-#define IR_SEND_PIN         3
-#endif
-
 /*
  * Specify DistanceWidthProtocol for decoding. This must be done before the #include <IRremote.hpp>
  */
 #define DECODE_DISTANCE_WIDTH // Universal decoder for pulse distance width protocols
 //
 #if !defined(RAW_BUFFER_LENGTH)
-// For air condition remotes it requires 750. Default is 200.
-#  if (defined(RAMEND) && RAMEND <= 0x4FF) || (defined(RAMSIZE) && RAMSIZE < 0x4FF)
+// Use more than the default values of 100 for 512 bytes RAM, 200 for 2k RAM and 750 for more than 2k RAM
+#  if RAMSIZE <= 0x400
+// Here we have 1 k RAM or less
 #define RAW_BUFFER_LENGTH  360
-#  elif (defined(RAMEND) && RAMEND <= 0x8FF) || (defined(RAMSIZE) && RAMSIZE < 0x8FF)
+#  else
+// Here we most likely have 2 k RAM or more
 #define RAW_BUFFER_LENGTH  750
 #  endif
 #endif
@@ -69,9 +66,13 @@
 //#define RECORD_GAP_MICROS 12000   // Default is 8000. Activate it for some LG air conditioner protocols
 //#define SEND_PWM_BY_TIMER         // Disable carrier PWM generation in software and use (restricted) hardware PWM.
 //#define USE_NO_SEND_PWM           // Use no carrier PWM, just simulate an active low receiver signal. Overrides SEND_PWM_BY_TIMER definition
+//#define NO_LED_FEEDBACK_CODE      // Saves 218 bytes program memory
+//#define NO_LED_RECEIVE_FEEDBACK_CODE  // Saves 82 bytes program memory
+//#define NO_LED_SEND_FEEDBACK_CODE     // Saves 58 bytes program memory
 
 //#define DEBUG // Activate this for lots of lovely debug output from the decoders.
 
+#include "PinDefinitionsAndMore.h" // Define macros for input and output pin etc. Sets FLASHEND and RAMSIZE and evaluates value of SEND_PWM_BY_TIMER.
 #include <IRremote.hpp>
 
 #define SEND_BUTTON_PIN                     APPLICATION_PIN
@@ -79,8 +80,8 @@
 #define DELAY_BETWEEN_REPEATS_MILLIS        70
 
 // Storage for the recorded code, pre-filled with NEC data
-IRRawDataType sDecodedRawDataArray[RAW_DATA_ARRAY_SIZE] = { 0x7B34ED12 }; // Initialize with NEC address 0x12 and command 0x34
-DistanceWidthTimingInfoStruct sDistanceWidthTimingInfo = { 9000, 4500, 560, 1690, 560, 560 }; // Initialize with NEC timing
+IRDecodedRawDataType sDecodedRawDataArray[DECODED_RAW_DATA_ARRAY_SIZE] = { 0x7B34ED12 }; // Initialize with NEC address 0x12 and command 0x34
+DistanceWidthTimingInfoStruct sDistanceWidthTimingInfo  = { 9000, 4500, 560, 1690, 560, 560 }; // Initialize with NEC timing
 uint8_t sNumberOfBits = 32;
 
 bool sSendButtonWasActive;
@@ -89,8 +90,6 @@ void setup() {
     pinMode(SEND_BUTTON_PIN, INPUT_PULLUP);
 
     Serial.begin(115200);
-    while (!Serial)
-        ; // Wait for Serial to become available. Is optimized away for some cores.
 
 #if defined(__AVR_ATmega32U4__) || defined(SERIAL_PORT_USBVIRTUAL) || defined(SERIAL_USB) /*stm32duino*/|| defined(USBCON) /*STM32_stm32*/ \
     || defined(SERIALUSB_PID)  || defined(ARDUINO_ARCH_RP2040) || defined(ARDUINO_attiny3217)
@@ -103,7 +102,11 @@ void setup() {
     IrReceiver.begin(IR_RECEIVE_PIN, ENABLE_LED_FEEDBACK);
     Serial.println(F("Ready to receive pulse distance/width coded IR signals at pin " STR(IR_RECEIVE_PIN)));
 
-    IrSender.begin(); // Start with IR_SEND_PIN -which is defined in PinDefinitionsAndMore.h- as send pin and enable feedback LED at default feedback LED pin
+    /*
+     * No IR send setup required :-)
+     * Default is to use IR_SEND_PIN -which is defined in PinDefinitionsAndMore.h- as send pin
+     * and use feedback LED at default feedback LED pin if not disabled by #define NO_LED_SEND_FEEDBACK_CODE
+     */
     Serial.print(F("Ready to send IR signals at pin " STR(IR_SEND_PIN) " on press of button at pin "));
     Serial.println(SEND_BUTTON_PIN);
 }
@@ -177,7 +180,12 @@ void loop() {
             if (sDecodedRawDataArray[0] != IrReceiver.decodedIRData.decodedRawDataArray[0]) {
                 *sDecodedRawDataArray = *IrReceiver.decodedIRData.decodedRawDataArray; // copy content here
                 Serial.print(F("Store new sDecodedRawDataArray[0]=0x"));
+#  if (__INT_WIDTH__ < 32)
                 Serial.println(IrReceiver.decodedIRData.decodedRawDataArray[0], HEX);
+#  else
+                PrintULL::print(&Serial, IrReceiver.decodedIRData.decodedRawDataArray[0], HEX);
+#  endif
+
             }
         }
         IrReceiver.resume(); // resume receiver

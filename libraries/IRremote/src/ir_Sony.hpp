@@ -8,6 +8,8 @@
  ************************************************************************************
  * MIT License
  *
+ * Copyright (c) 2020-2026 Armin Joachimsmeyer
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -30,11 +32,7 @@
 #ifndef _IR_SONY_HPP
 #define _IR_SONY_HPP
 
-#if defined(DEBUG) && !defined(LOCAL_DEBUG)
-#define LOCAL_DEBUG
-#else
-//#define LOCAL_DEBUG // This enables debug output only for this file
-#endif
+#include "LocalDebugLevelStart.h"
 
 /** \addtogroup Decoder Decoders and encoders for different protocols
  * @{
@@ -65,7 +63,7 @@
 // see https://www.sbprojects.net/knowledge/ir/sirc.php
 // https://www.mikrocontroller.net/articles/IRMP_-_english#SIRCS
 // Frames are repeated every 45ms (measured from start to start) for as long as the key on the remote control is held down.
-// This leads to a 15 ms gap for a Sony20 protocol!
+// This leads to a 12 ms gap for a Sony20 protocol!
 // Here http://picprojects.org.uk/projects/sirc/ it is claimed, that many Sony remotes send each frame a minimum of 3 times. But 1 repeat (2 sends) has also been seen in real life.
 // LSB first, start bit + 7 command + 5 to 13 address, no stop bit
 // IRP: Sony12 {40k,600}<1,-1|2,-1>(4,-1,F:7,D:5,^45m)+ ==> 40 kHz, Unit is 600, LSB, One mark is 2 units, Start bit is 4 units, 7 bit Function, 5 bit Device, no Stop bit, every 45 milliseconds
@@ -85,13 +83,13 @@
 #define SONY_ZERO_MARK          SONY_UNIT
 #define SONY_SPACE              SONY_UNIT
 
-#define SONY_AVERAGE_DURATION_MIN   21000 // SONY_HEADER_MARK + SONY_SPACE  + 12 * 2,5 * SONY_UNIT  // 2.5 because we assume more zeros than ones
-#define SONY_AVERAGE_DURATION_MAX   33000 // SONY_HEADER_MARK + SONY_SPACE  + 20 * 2,5 * SONY_UNIT  // 2.5 because we assume more zeros than ones
-#define SONY_REPEAT_PERIOD          45000 // Commands are repeated every 45 ms (measured from start to start) for as long as the key on the remote control is held down.
-#define SONY_MAXIMUM_REPEAT_DISTANCE    (SONY_REPEAT_PERIOD - SONY_AVERAGE_DURATION_MIN) // 24 ms
+#define SONY_DURATION_MIN       17400 // SONY_HEADER_MARK + SONY_SPACE + 12 * 2 * SONY_UNIT = 29 * SONY_UNIT
+#define SONY_DURATION_MAX       37200 // SONY_HEADER_MARK + SONY_SPACE + 20 * 3 * SONY_UNIT = 65 * SONY_UNIT
+#define SONY_REPEAT_PERIOD      45000 // Commands are repeated every 45 ms (measured from start to start) for as long as the key on the remote control is held down.
+#define SONY_MAXIMUM_REPEAT_DISTANCE    (SONY_REPEAT_PERIOD - SONY_DURATION_MIN) // 27,6 ms
 
-struct PulseDistanceWidthProtocolConstants SonyProtocolConstants = { SONY, SONY_KHZ, SONY_HEADER_MARK, SONY_SPACE, SONY_ONE_MARK,
-SONY_SPACE, SONY_ZERO_MARK, SONY_SPACE, PROTOCOL_IS_LSB_FIRST, (SONY_REPEAT_PERIOD / MICROS_IN_ONE_MILLI), NULL };
+struct PulseDistanceWidthProtocolConstants const SonyProtocolConstants PROGMEM = { SONY, SONY_KHZ, SONY_HEADER_MARK, SONY_SPACE, SONY_ONE_MARK,
+SONY_SPACE, SONY_ZERO_MARK, SONY_SPACE, PROTOCOL_IS_LSB_FIRST | PROTOCOL_IS_PULSE_WIDTH, (SONY_REPEAT_PERIOD / MICROS_IN_ONE_MILLI), nullptr };
 
 /************************************
  * Start of send and decode functions
@@ -103,32 +101,25 @@ SONY_SPACE, SONY_ZERO_MARK, SONY_SPACE, PROTOCOL_IS_LSB_FIRST, (SONY_REPEAT_PERI
 void IRsend::sendSony(uint16_t aAddress, uint8_t aCommand, int_fast8_t aNumberOfRepeats, uint8_t numberOfBits) {
     uint32_t tData = (uint32_t) aAddress << 7 | (aCommand & 0x7F);
     // send 5, 8, 13 address bits LSB first
-    sendPulseDistanceWidth(&SonyProtocolConstants, tData, numberOfBits, aNumberOfRepeats);
+    sendPulseDistanceWidth_P(&SonyProtocolConstants, tData, numberOfBits, aNumberOfRepeats);
 }
 
 bool IRrecv::decodeSony() {
 
-    if (!checkHeader(&SonyProtocolConstants)) {
+    if (!checkHeader_P(&SonyProtocolConstants)) {
         return false;
     }
 
     // Check we have enough data. +2 for initial gap and start bit mark and space minus the last/MSB space. NO stop bit! 26, 32, 42
-    if (decodedIRData.rawlen != (2 * SONY_BITS_MIN) + 2 && decodedIRData.rawlen != (2 * SONY_BITS_MAX) + 2
-            && decodedIRData.rawlen != (2 * SONY_BITS_15) + 2) {
-        IR_DEBUG_PRINT(F("Sony: "));
-        IR_DEBUG_PRINT(F("Data length="));
-        IR_DEBUG_PRINT(decodedIRData.rawlen);
-        IR_DEBUG_PRINTLN(F(" is not 12, 15 or 20"));
+    if (!(decodedIRData.rawlen == (2 * SONY_BITS_MIN) + 2 || decodedIRData.rawlen == (2 * SONY_BITS_MAX) + 2
+            || decodedIRData.rawlen == (2 * SONY_BITS_15) + 2)) {
+        DEBUG_PRINT(F("Sony: Data length="));
+        DEBUG_PRINT(decodedIRData.rawlen);
+        DEBUG_PRINTLN(F(" is not 12, 15 or 20"));
         return false;
     }
 
-    if (!decodePulseDistanceWidthData(&SonyProtocolConstants, (decodedIRData.rawlen - 1) / 2, 3)) {
-#if defined(LOCAL_DEBUG)
-        Serial.print(F("Sony: "));
-        Serial.println(F("Decode failed"));
-#endif
-        return false;
-    }
+    decodePulseDistanceWidthData_P(&SonyProtocolConstants, (decodedIRData.rawlen - 1) / 2, 3);
 
     // Success
 //    decodedIRData.flags = IRDATA_FLAGS_IS_LSB_FIRST; // Not required, since this is the start value
@@ -163,9 +154,8 @@ bool IRrecv::decodeSonyMSB(decode_results *aResults) {
     // Some Sony's deliver repeats fast after first
     // unfortunately can't spot difference from of repeat from two fast clicks
     if (aResults->rawbuf[0] < (SONY_DOUBLE_SPACE_USECS / MICROS_PER_TICK)) {
-#if defined(LOCAL_DEBUG)
-        Serial.println(F("IR Gap found"));
-#endif
+        DEBUG_PRINTLN(F("IR Gap found"));
+
         aResults->bits = 0;
         aResults->value = 0xFFFFFFFF;
         decodedIRData.flags = IRDATA_FLAGS_IS_REPEAT;
@@ -229,7 +219,6 @@ void IRsend::sendSony(unsigned long data, int nbits) {
 }
 
 /** @}*/
-#if defined(LOCAL_DEBUG)
-#undef LOCAL_DEBUG
-#endif
+#include "LocalDebugLevelEnd.h"
+
 #endif // _IR_SONY_HPP

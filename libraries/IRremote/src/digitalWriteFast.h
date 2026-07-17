@@ -5,11 +5,21 @@
  * by Watterott electronic (www.watterott.com)
  * based on https://code.google.com/p/digitalwritefast
  *
+ * The value of DigitalReadFast() is the content of the input register e.g. 0x04 for pin2 and NOT always 0 or 1.
+ *
  * License: BSD 3-Clause License (https://opensource.org/licenses/BSD-3-Clause)
  */
 
 #ifndef __digitalWriteFast_h_
 #define __digitalWriteFast_h_ 1
+
+//#define THROW_ERROR_IF_NOT_FAST // If activated, an error is thrown if pin is not a compile time constant
+void NonConstantsUsedForPinModeFast( void )  __attribute__ (( error("Parameter for pinModeFast() function is not constant") ));
+void NonConstantsUsedForDigitalWriteFast( void )  __attribute__ (( error("Parameter for digitalWriteFast() function is not constant") ));
+void NonConstantsUsedForDigitalToggleFast( void )  __attribute__ (( error("Parameter for digitalToggleFast() function is not constant") ));
+int NonConstantsUsedForDigitalReadFast( void )  __attribute__ (( error("Parameter for digitalReadFast() function is not constant") ));
+
+#if !defined(MEGATINYCORE) // megaTinyCore has it own digitalWriteFast function set, except digitalToggleFast().
 
 //#define SANGUINO_PINOUT // define for Sanguino pinout
 
@@ -301,39 +311,36 @@
 #define __digitalPinToPortReg(P) (((P) <= 7) ? &PORTA : &PORTB)
 #define __digitalPinToDDRReg(P)  (((P) <= 7) ? &DDRA : &DDRB)
 #define __digitalPinToPINReg(P)  (((P) <= 7) ? &PINA : &PINB)
-# endif
-# if  defined(__AVR_ATtiny24__) || defined(__AVR_ATtiny44__) || defined(__AVR_ATtiny84__) || defined(__AVR_ATtiny441__) || defined(__AVR_ATtiny841__)
+#  if  defined(__AVR_ATtiny24__) || defined(__AVR_ATtiny44__) || defined(__AVR_ATtiny84__) || defined(__AVR_ATtiny441__) || defined(__AVR_ATtiny841__)
 // https://github.com/SpenceKonde/ATTinyCore/blob/v2.0.0-devThis-is-the-head-submit-PRs-against-this/avr/variants/tinyx41_cw/pins_arduino.h#L334
 // Clockwise layout
 #define __digitalPinToBit(P)     (((P) <= 7) ? (P) : ((P) == 11 ? (3) : 10 - (P)))
-# else
+#  else
 #define __digitalPinToBit(P)     (((P) <= 7) ? (P) : (P) - 8 )
+#  endif
 # endif
-
 #endif
-
-
-void NonConstantsUsedForPinModeFast( void )  __attribute__ (( error("Parameter for pinModeFast() function is not constant") ));
-void NonConstantsUsedForDigitalWriteFast( void )  __attribute__ (( error("Parameter for digitalWriteFast() function is not constant") ));
-void NonConstantsUsedForDigitalToggleFast( void )  __attribute__ (( error("Parameter for digitalToggleFast() function is not constant") ));
-int NonConstantsUsedForDigitalReadFast( void )  __attribute__ (( error("Parameter for digitalReadFast() function is not constant") ));
 
 #if !defined(digitalWriteFast)
 #  if (defined(__AVR__) || defined(ARDUINO_ARCH_AVR)) && defined(__digitalPinToPortReg)
 #    if defined(THROW_ERROR_IF_NOT_FAST)
 #define digitalWriteFast(P, V) \
-if (__builtin_constant_p(P)) { \
-  BIT_WRITE(*__digitalPinToPortReg(P), __digitalPinToBit(P), (V)); \
-} else { \
+do { \
+  if (__builtin_constant_p(P)) { \
+    BIT_WRITE(*__digitalPinToPortReg(P), __digitalPinToBit(P), (V)); \
+  } else { \
     NonConstantsUsedForDigitalWriteFast(); \
-}
+  } \
+} while (0)
 #    else
 #define digitalWriteFast(P, V) \
-if (__builtin_constant_p(P)) { \
-  BIT_WRITE(*__digitalPinToPortReg(P), __digitalPinToBit(P), (V)); \
-} else { \
-  digitalWrite((P), (V)); \
-}
+do { \
+  if (__builtin_constant_p(P)) { \
+    BIT_WRITE(*__digitalPinToPortReg(P), __digitalPinToBit(P), (V)); \
+  } else { \
+    digitalWrite((P), (V)); \
+  } \
+} while (0)
 #    endif // defined(THROW_ERROR_IF_NOT_FAST)
 #  else
 #define digitalWriteFast digitalWrite
@@ -344,28 +351,32 @@ if (__builtin_constant_p(P)) { \
 #  if (defined(__AVR__) || defined(ARDUINO_ARCH_AVR)) && defined(__digitalPinToPortReg)
 #    if defined(THROW_ERROR_IF_NOT_FAST)
 #define pinModeFast(P, V) \
-if (__builtin_constant_p(P) && __builtin_constant_p(V)) { \
-  if (V == INPUT_PULLUP) {\
-    BIT_CLEAR(*__digitalPinToDDRReg(P), __digitalPinToBit(P)); \
-    BIT_SET(*__digitalPinToPortReg(P), __digitalPinToBit(P)); \
+do { \
+  if (__builtin_constant_p(P) && __builtin_constant_p(V)) { \
+    if (V == INPUT_PULLUP) {\
+      BIT_CLEAR(*__digitalPinToDDRReg(P), __digitalPinToBit(P)); \
+      BIT_SET(*__digitalPinToPortReg(P), __digitalPinToBit(P)); \
+    } else { \
+      BIT_WRITE(*__digitalPinToDDRReg(P), __digitalPinToBit(P), (V)); \
+    } \
   } else { \
-    BIT_WRITE(*__digitalPinToDDRReg(P), __digitalPinToBit(P), (V)); \
-  } \
-} else { \
     NonConstantsUsedForPinModeFast(); \
-}
+  } \
+} while (0)
 #    else
 #define pinModeFast(P, V) \
-if (__builtin_constant_p(P) && __builtin_constant_p(V)) { \
-  if (V == INPUT_PULLUP) {\
-    BIT_CLEAR(*__digitalPinToDDRReg(P), __digitalPinToBit(P)); \
-    BIT_SET(*__digitalPinToPortReg(P), __digitalPinToBit(P)); \
+do { \
+  if (__builtin_constant_p(P) && __builtin_constant_p(V)) { \
+    if (V == INPUT_PULLUP) {\
+      BIT_CLEAR(*__digitalPinToDDRReg(P), __digitalPinToBit(P)); \
+      BIT_SET(*__digitalPinToPortReg(P), __digitalPinToBit(P)); \
+    } else { \
+      BIT_WRITE(*__digitalPinToDDRReg(P), __digitalPinToBit(P), (V)); \
+    } \
   } else { \
-    BIT_WRITE(*__digitalPinToDDRReg(P), __digitalPinToBit(P), (V)); \
+    pinMode((P), (V)); \
   } \
-} else { \
-  pinMode((P), (V)); \
-}
+} while (0)
 #    endif // defined(THROW_ERROR_IF_NOT_FAST)
 #  else
 #define pinModeFast pinMode
@@ -377,17 +388,11 @@ if (__builtin_constant_p(P) && __builtin_constant_p(V)) { \
 #    if defined(THROW_ERROR_IF_NOT_FAST)
 #define digitalReadFast(P) ( (int) __digitalReadFast((P)) )
 // since we have return values, it is easier to implement it by ?:
-#define __digitalReadFast(P ) \
-  (__builtin_constant_p(P) ) ? \
-  (( BIT_READ(*__digitalPinToPINReg(P), __digitalPinToBit(P))) ? HIGH:LOW ) : \
-  NonConstantsUsedForDigitalReadFast()
+#define __digitalReadFast(P ) ( (__builtin_constant_p(P) ) ? (( BIT_READ(*__digitalPinToPINReg(P), __digitalPinToBit(P))) ? HIGH:LOW ) : NonConstantsUsedForDigitalReadFast() )
 #    else
 #define digitalReadFast(P) ( (int) __digitalReadFast((P)) )
 // since we have return values, it is easier to implement it by ?:
-#define __digitalReadFast(P ) \
-  (__builtin_constant_p(P) ) ? \
-  (( BIT_READ(*__digitalPinToPINReg(P), __digitalPinToBit(P))) ? HIGH:LOW ) : \
-  digitalRead((P))
+#define __digitalReadFast(P ) ( (__builtin_constant_p(P) ) ? (( BIT_READ(*__digitalPinToPINReg(P), __digitalPinToBit(P))) ? HIGH:LOW ) : digitalRead((P)) )
 #    endif // defined(THROW_ERROR_IF_NOT_FAST)
 #  else
 #define digitalReadFast digitalRead
@@ -398,22 +403,27 @@ if (__builtin_constant_p(P) && __builtin_constant_p(V)) { \
 #  if (defined(__AVR__) || defined(ARDUINO_ARCH_AVR)) && defined(__digitalPinToPINReg)
 #    if defined(THROW_ERROR_IF_NOT_FAST)
 #define digitalToggleFast(P) \
-if (__builtin_constant_p(P)) { \
-  BIT_SET(*__digitalPinToPINReg(P), __digitalPinToBit(P)); \
-} else { \
+do { \
+  if (__builtin_constant_p(P)) { \
+    BIT_SET(*__digitalPinToPINReg(P), __digitalPinToBit(P)); \
+  } else { \
     NonConstantsUsedForDigitalToggleFast(); \
-}
+  } \
+} while (0)
 #    else
 #define digitalToggleFast(P) \
-if (__builtin_constant_p(P)) { \
-  BIT_SET(*__digitalPinToPINReg(P), __digitalPinToBit(P)); \
-} else { \
-  digitalWrite(P, ! digitalRead(P)); \
-}
+do { \
+  if (__builtin_constant_p(P)) { \
+    BIT_SET(*__digitalPinToPINReg(P), __digitalPinToBit(P)); \
+  } else { \
+    digitalWrite(P, ! digitalRead(P)); \
+  } \
+} while (0)
 #    endif // defined(THROW_ERROR_IF_NOT_FAST)
 #  else
 #define digitalToggleFast(P) digitalWrite(P, ! digitalRead(P))
 #  endif
 #endif // !defined(digitalToggleFast)
 
+#endif // !defined(MEGATINYCORE)
 #endif //__digitalWriteFast_h_

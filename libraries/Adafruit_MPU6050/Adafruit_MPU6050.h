@@ -23,9 +23,8 @@
 #include <Adafruit_Sensor.h>
 #include <Wire.h>
 
-#define MPU6050_I2CADDR_DEFAULT                                                \
-  0x68                         ///< MPU6050 default i2c address w/ AD0 high
-#define MPU6050_DEVICE_ID 0x68 ///< The correct MPU6050_WHO_AM_I value
+#define MPU6050_I2CADDR_DEFAULT 0x68 ///< MPU6050 default i2c address w/ AD0 low
+#define MPU6050_DEVICE_ID 0x68       ///< The correct MPU6050_WHO_AM_I value
 
 #define MPU6050_SELF_TEST_X                                                    \
   0x0D ///< Self test factory calibrated values register
@@ -201,7 +200,7 @@ private:
 
 /*!
  *    @brief  Class that stores state and functions for interacting with
- *            the MPU6050 I2C Digital Potentiometer
+ *            the MPU6050 I2C 6-DoF Accelerometer and Gyro
  */
 class Adafruit_MPU6050 final {
 public:

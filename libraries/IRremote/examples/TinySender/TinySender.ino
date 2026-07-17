@@ -17,8 +17,8 @@
  * - Repeats are sent as complete frames but in a 50 ms period / with a 21 ms distance.
  *
  *
- *  This file is part of IRMP https://github.com/IRMP-org/IRMP.
  *  This file is part of Arduino-IRremote https://github.com/Arduino-IRremote/Arduino-IRremote.
+ *  This file is also part of IRMP https://github.com/IRMP-org/IRMP.
  *
  ************************************************************************************
  * MIT License
@@ -46,7 +46,7 @@
  */
 #include <Arduino.h>
 
-#include "PinDefinitionsAndMore.h" // Set IR_SEND_PIN for different CPU's
+#include "PinDefinitionsAndMore.h" // Define macros for input and output pin etc. Sets FLASHEND and RAMSIZE and evaluates value of SEND_PWM_BY_TIMER.
 
 #include "TinyIRSender.hpp"
 
@@ -54,8 +54,6 @@ void setup() {
     pinMode(LED_BUILTIN, OUTPUT);
 
     Serial.begin(115200);
-    while (!Serial)
-        ; // Wait for Serial to become available. Is optimized away for some cores.
 
     // Just to know which program is running on my Arduino
     Serial.println(F("START " __FILE__ " from " __DATE__ "\r\nUsing library version " VERSION_TINYIR));

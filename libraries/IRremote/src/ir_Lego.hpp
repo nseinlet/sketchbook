@@ -32,6 +32,8 @@
 #ifndef _IR_LEGO_HPP
 #define _IR_LEGO_HPP
 
+#include "LocalDebugLevelStart.h"
+
 /** \addtogroup Decoder Decoders and encoders for different protocols
  * @{
  */
@@ -48,18 +50,30 @@
 // For original LEGO receiver see: https://www.philohome.com/pfrec/pfrec.htm and https://www.youtube.com/watch?v=KCM4Ug1bPrM
 //
 // To ensure correct detection of IR messages six 38 kHz cycles are transmitted as mark.
-// Low bit consists of 6 cycles of IR and 10 �cycles� of pause,
-// high bit of 6 cycles IR and 21 �cycles� of pause and start bit of 6 cycles IR and 39 �cycles� of pause.
-// Low bit range 316 - 526 us
-// High bit range 526 � 947 us
-// Start/stop bit range 947 � 1579 us
+// Low bit consists of 6 cycles of IR and 10 cycles of pause,
+// High bit of 6 cycles IR and 21 cycles of pause,
+// Start/stop of 6 cycles IR and 39 cycles of pause.
+//
 // If tm is the maximum message length (16ms) and Ch is the channel number, then
-// The delay before transmitting the first message is: (4 � Ch)*tm
-// The time from start to start for the next 2 messages is: 5*tm
-// The time from start to start for the following messages is: (6 + 2*Ch)*tm
+// The delay before transmitting the first message is: (4 - Ch) * tm
+// The time from start to start for the next 2 messages is: 5 * tm
+// The time from start to start for the following messages is: (6 + 2 * Ch) * tm
 // Supported Devices
 // LEGO Power Functions IR Receiver 8884
 // MSB first, 1 start bit + 4 bit channel, 4 bit mode + 4 bit command + 4 bit parity + 1 stop bit.
+/* Protocol=Lego Address=0x1, Command=0x16, Raw-Data=0x1169 ,16 bits, MSB first, Gap=1050600us, Duration=10000us
+ Send with: IrSender.sendLego(0x1, 0x16, <numberOfRepeats>);
+ rawData[36]:
+ -1050600
+ + 250,- 950
+ + 250,- 500 + 200,- 200 + 200,- 250 + 200,- 500
+ + 200,- 250 + 200,- 500 + 200,- 500 + 200,- 250
+ + 200,- 500 + 200,- 200 + 250,- 200 + 200,- 200
+ + 250,- 500 + 200,- 200 + 250,- 200 + 200,- 250
+ + 200
+ Duration=10000us
+ */
+
 #define LEGO_CHANNEL_BITS       4
 #define LEGO_MODE_BITS          4
 #define LEGO_COMMAND_BITS       4
@@ -73,6 +87,7 @@
 #define LEGO_BIT_MARK           158    //  6 cycles
 #define LEGO_ONE_SPACE          553    // 21 cycles
 #define LEGO_ZERO_SPACE         263    // 10 cycles
+#define LEGO_ONE_THRESHOLD      408    // 15.5 cycles - not used, just for info
 
 #define LEGO_AVERAGE_DURATION   11000 // LEGO_HEADER_MARK + LEGO_HEADER_SPACE  + 16 * 600 + 158
 
@@ -83,9 +98,10 @@
 #define LEGO_MODE_COMBO     1
 #define LEGO_MODE_SINGLE    0x4 // here the 2 LSB have meanings like Output A / Output B
 
-struct PulseDistanceWidthProtocolConstants LegoProtocolConstants = { LEGO_PF, 38, LEGO_HEADER_MARK, LEGO_HEADER_SPACE, LEGO_BIT_MARK,
-LEGO_ONE_SPACE, LEGO_BIT_MARK, LEGO_ZERO_SPACE, PROTOCOL_IS_LSB_FIRST, (LEGO_AUTO_REPEAT_PERIOD_MIN
-        / MICROS_IN_ONE_MILLI), NULL };
+// Cannot be constant, since we need to change RepeatPeriodMillis during sending
+struct PulseDistanceWidthProtocolConstants LegoProtocolConstants = { LEGO_PF, 38, LEGO_HEADER_MARK, LEGO_HEADER_SPACE,
+LEGO_BIT_MARK, LEGO_ONE_SPACE, LEGO_BIT_MARK, LEGO_ZERO_SPACE, PROTOCOL_IS_LSB_FIRST | PROTOCOL_IS_PULSE_DISTANCE,
+        (LEGO_AUTO_REPEAT_PERIOD_MIN / MICROS_IN_ONE_MILLI), nullptr };
 
 /************************************
  * Start of send and decode functions
@@ -107,8 +123,8 @@ void IRsend::sendLegoPowerFunctions(uint8_t aChannel, uint8_t aCommand, uint8_t 
 
 void IRsend::sendLegoPowerFunctions(uint16_t aRawData, uint8_t aChannel, bool aDoSend5Times) {
 
-    IR_DEBUG_PRINT(F("sendLego aRawData=0x"));
-    IR_DEBUG_PRINTLN(aRawData, HEX);
+    DEBUG_PRINT(F("sendLego aRawData=0x"));
+    DEBUG_PRINTLN(aRawData, HEX);
 
     aChannel &= 0x03; // we have 4 channels
 
@@ -127,31 +143,31 @@ void IRsend::sendLegoPowerFunctions(uint16_t aRawData, uint8_t aChannel, bool aD
  */
 bool IRrecv::decodeLegoPowerFunctions() {
 
-    if (!checkHeader(&LegoProtocolConstants)) {
+    /*
+     * Check header timings
+     * Since LEGO_HEADER_MARK is just 158 us use a relaxed threshold compare (237) for it instead of matchMark()
+     */
+    if (!(matchMarkWithGreaterRange(irparams.rawbuf[1], LEGO_HEADER_MARK) && (matchSpace(irparams.rawbuf[2], LEGO_HEADER_SPACE)))) {
+        DEBUG_PRINTLN(F("LEGO: No header mark and space"));
         return false;
     }
 
     // Check we have enough data - +4 for initial gap, start bit mark and space + stop bit mark
-    if (decodedIRData.rawDataPtr->rawlen != (2 * LEGO_BITS) + 4) {
-        IR_DEBUG_PRINT(F("LEGO: "));
-        IR_DEBUG_PRINT(F("Data length="));
-        IR_DEBUG_PRINT(decodedIRData.rawDataPtr->rawlen);
-        IR_DEBUG_PRINTLN(F(" is not 36"));
+    if (decodedIRData.rawlen != (2 * LEGO_BITS) + 4) {
+        DEBUG_PRINT(F("LEGO: Data length="));
+        DEBUG_PRINT(irparams.rawlen);
+        DEBUG_PRINTLN(F(" is not 36"));
         return false;
     }
 
-    if (!decodePulseDistanceWidthData(&LegoProtocolConstants, LEGO_BITS)) {
-        IR_DEBUG_PRINT(F("LEGO: "));
-        IR_DEBUG_PRINTLN(F("Decode failed"));
-        return false;
-    }
+    decodePulseDistanceWidthData(&LegoProtocolConstants, LEGO_BITS);
 
-    // Stop bit
-    if (!matchMark(decodedIRData.rawDataPtr->rawbuf[3 + (2 * LEGO_BITS)], LEGO_BIT_MARK)) {
-        IR_DEBUG_PRINT(F("LEGO: "));
-        IR_DEBUG_PRINTLN(F("Stop bit mark length is wrong"));
-        return false;
-    }
+    // Stop bit, use threshold decoding - not required :-)
+//    if (irparams.rawbuf[3 + (2 * LEGO_BITS)] > (2 * LEGO_BIT_MARK)) {
+//        DEBUG_PRINT(F("LEGO: "));
+//        DEBUG_PRINTLN(F("Stop bit mark length is wrong"));
+//        return false;
+//    }
 
     // Success
     decodedIRData.flags = IRDATA_FLAGS_IS_MSB_FIRST;
@@ -167,19 +183,18 @@ bool IRrecv::decodeLegoPowerFunctions() {
 
     // parity check
     if (tParityReceived != tParityComputed) {
-        IR_DEBUG_PRINT(F("LEGO: "));
-        IR_DEBUG_PRINT(F("Parity is not correct. expected=0x"));
-        IR_DEBUG_PRINT(tParityComputed, HEX);
-        IR_DEBUG_PRINT(F(" received=0x"));
-        IR_DEBUG_PRINT(tParityReceived, HEX);
-        IR_DEBUG_PRINT(F(", raw=0x"));
-        IR_DEBUG_PRINT(tDecodedValue, HEX);
-        IR_DEBUG_PRINT(F(", 3 nibbles are 0x"));
-        IR_DEBUG_PRINT(tToggleEscapeChannel, HEX);
-        IR_DEBUG_PRINT(F(", 0x"));
-        IR_DEBUG_PRINT(tMode, HEX);
-        IR_DEBUG_PRINT(F(", 0x"));
-        IR_DEBUG_PRINTLN(tData, HEX);
+        DEBUG_PRINT(F("LEGO: Parity is not correct. expected=0x"));
+        DEBUG_PRINT(tParityComputed, HEX);
+        DEBUG_PRINT(F(" received=0x"));
+        DEBUG_PRINT(tParityReceived, HEX);
+        DEBUG_PRINT(F(", raw=0x"));
+        DEBUG_PRINT(tDecodedValue, HEX);
+        DEBUG_PRINT(F(", 3 nibbles are 0x"));
+        DEBUG_PRINT(tToggleEscapeChannel, HEX);
+        DEBUG_PRINT(F(", 0x"));
+        DEBUG_PRINT(tMode, HEX);
+        DEBUG_PRINT(F(", 0x"));
+        DEBUG_PRINTLN(tData, HEX);
         // might not be an error, so just continue
         decodedIRData.flags = IRDATA_FLAGS_PARITY_FAILED | IRDATA_FLAGS_IS_MSB_FIRST;
     }
@@ -191,7 +206,7 @@ bool IRrecv::decodeLegoPowerFunctions() {
         decodedIRData.flags |= IRDATA_FLAGS_IS_AUTO_REPEAT;
     }
     decodedIRData.address = tToggleEscapeChannel;
-    decodedIRData.command = tData | tMode << LEGO_COMMAND_BITS;
+    decodedIRData.command = tData | (tMode << LEGO_COMMAND_BITS);
     decodedIRData.numberOfBits = LEGO_BITS;
     decodedIRData.protocol = LEGO_PF;
 
@@ -207,4 +222,6 @@ void IRsend::sendLegoPowerFunctions(uint16_t aRawData, bool aDoSend5Times) {
 }
 
 /** @}*/
+#include "LocalDebugLevelEnd.h"
+
 #endif // _IR_LEGO_HPP

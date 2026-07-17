@@ -9,11 +9,9 @@
 #ifndef _IR_BOSEWAVE_HPP
 #define _IR_BOSEWAVE_HPP
 
-#if defined(DEBUG) && !defined(LOCAL_DEBUG)
-#define LOCAL_DEBUG
-#else
-//#define LOCAL_DEBUG // This enables debug output only for this file
-#endif
+// This block must be located after the includes of other *.hpp files
+//#define LOCAL_DEBUG // This enables debug output only for this file - only for development
+#include "LocalDebugLevelStart.h"
 
 /** \addtogroup Decoder Decoders and encoders for different protocols
  * @{
@@ -46,9 +44,9 @@
 #define BOSEWAVE_REPEAT_DISTANCE            50000
 #define BOSEWAVE_MAXIMUM_REPEAT_DISTANCE    62000
 
-struct PulseDistanceWidthProtocolConstants BoseWaveProtocolConstants = { BOSEWAVE, BOSEWAVE_KHZ, BOSEWAVE_HEADER_MARK,
-BOSEWAVE_HEADER_SPACE, BOSEWAVE_BIT_MARK, BOSEWAVE_ONE_SPACE, BOSEWAVE_BIT_MARK, BOSEWAVE_ZERO_SPACE, PROTOCOL_IS_LSB_FIRST
-       , (BOSEWAVE_REPEAT_PERIOD / MICROS_IN_ONE_MILLI), NULL };
+struct PulseDistanceWidthProtocolConstants const BoseWaveProtocolConstants PROGMEM = {BOSEWAVE, BOSEWAVE_KHZ, BOSEWAVE_HEADER_MARK,
+    BOSEWAVE_HEADER_SPACE, BOSEWAVE_BIT_MARK, BOSEWAVE_ONE_SPACE, BOSEWAVE_BIT_MARK, BOSEWAVE_ZERO_SPACE, PROTOCOL_IS_LSB_FIRST | PROTOCOL_IS_PULSE_DISTANCE
+    , (BOSEWAVE_REPEAT_PERIOD / MICROS_IN_ONE_MILLI), nullptr};
 
 /************************************
  * Start of send and decode functions
@@ -58,38 +56,28 @@ void IRsend::sendBoseWave(uint8_t aCommand, int_fast8_t aNumberOfRepeats) {
 
     // send 8 command bits and then 8 inverted command bits LSB first
     uint16_t tData = ((~aCommand) << 8) | aCommand;
-    sendPulseDistanceWidth(&BoseWaveProtocolConstants, tData, BOSEWAVE_BITS, aNumberOfRepeats);
+    sendPulseDistanceWidth_P(&BoseWaveProtocolConstants, tData, BOSEWAVE_BITS, aNumberOfRepeats);
 }
 
 bool IRrecv::decodeBoseWave() {
 
-    if (!checkHeader(&BoseWaveProtocolConstants)) {
+    if (!checkHeader_P(&BoseWaveProtocolConstants)) {
         return false;
     }
 
     // Check we have enough data +4 for initial gap, start bit mark and space + stop bit mark
     if (decodedIRData.rawlen != (2 * BOSEWAVE_BITS) + 4) {
-        IR_DEBUG_PRINT(F("Bose: "));
-        IR_DEBUG_PRINT(F("Data length="));
-        IR_DEBUG_PRINT(decodedIRData.rawlen);
-        IR_DEBUG_PRINTLN(F(" is not 36"));
+        DEBUG_PRINT(F("Bose: Data length="));
+        DEBUG_PRINT(decodedIRData.rawlen);
+        DEBUG_PRINTLN(F(" is not 36"));
         return false;
     }
 
-    if (!decodePulseDistanceWidthData(&BoseWaveProtocolConstants, BOSEWAVE_BITS)) {
-#if defined(LOCAL_DEBUG)
-        Serial.print(F("Bose: "));
-        Serial.println(F("Decode failed"));
-#endif
-        return false;
-    }
+    decodePulseDistanceWidthData_P(&BoseWaveProtocolConstants, BOSEWAVE_BITS);
 
     // Stop bit
-    if (!matchMark(decodedIRData.rawDataPtr->rawbuf[3 + (2 * BOSEWAVE_BITS)], BOSEWAVE_BIT_MARK)) {
-#if defined(LOCAL_DEBUG)
-        Serial.print(F("Bose: "));
-        Serial.println(F("Stop bit mark length is wrong"));
-#endif
+    if (!matchMark(irparams.rawbuf[3 + (2 * BOSEWAVE_BITS)], BOSEWAVE_BIT_MARK)) {
+        DEBUG_PRINTLN(F("Bose: Stop bit mark length is wrong"));
         return false;
     }
 
@@ -100,10 +88,7 @@ bool IRrecv::decodeBoseWave() {
     uint8_t tCommandInverted = tDecodedValue >> 8;
     // parity check for command. Use this variant to avoid compiler warning "comparison of promoted ~unsigned with unsigned [-Wsign-compare]"
     if ((tCommandNotInverted ^ tCommandInverted) != 0xFF) {
-#if defined(LOCAL_DEBUG)
-        Serial.print(F("Bose: "));
-        Serial.println(F("Command and inverted command check failed"));
-#endif
+        DEBUG_PRINTLN(F("Bose: Command and inverted command check failed"));
         return false;
     }
     decodedIRData.command = tCommandNotInverted;
@@ -117,7 +102,6 @@ bool IRrecv::decodeBoseWave() {
 }
 
 /** @}*/
-#if defined(LOCAL_DEBUG)
-#undef LOCAL_DEBUG
-#endif
+#include "LocalDebugLevelEnd.h"
+
 #endif // _IR_BOSEWAVE_HPP
