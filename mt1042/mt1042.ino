@@ -26,11 +26,12 @@
  
 #include <Modelisme.h>
 #include <ReceiverDisplay.h>
+#define CHANNELS_SIZE 16
 
 Receiver rec;
 LightManager lm;
-ReceiverDisplay screen("MT 1042", 24);
-
+ReceiverDisplay screen("MT 1042", 1);
+long lastcheck;
 
 void setup(void) {
   debugSetup();
@@ -39,7 +40,7 @@ void setup(void) {
   //Screen
   screen.setup(&rec, &lm);
   //Sbus Decoder
-  rec.setup(19);
+  rec.setup(CHANNELS_SIZE);
   //Servos
   rec.servoPins[0] = 9; rec.servoChannels[0] = 6;
   rec.servoPins[1] = 10;rec.servoChannels[1] = 7;
@@ -50,18 +51,24 @@ void setup(void) {
   rec.servoPins[6] = A1;rec.servoChannels[6] = 13;
   rec.servoPins[7] = A2;rec.servoChannels[7] = 14;
   rec.servoPins[8] = A3;rec.servoChannels[8] = 15;
-  rec.servoPins[9] = A6;rec.servoChannels[9] = 16;
-  rec.servoPins[10]= A7;rec.servoChannels[10]= 17;
+  //rec.servoPins[9] = A6;rec.servoChannels[9] = 16;
+  //rec.servoPins[10]= A7;rec.servoChannels[10]= 17;
+
+  lastcheck=0;
 }
 
 void loop()
 { 
-  delay(50);
+  //delay(50);
   rec.read();
-  //Manage ligths
-  lm.checkLights(rec.channels[11].angle, rec.channels[2].angle, rec.channels[4].angle, rec.channels[1].angle);
-  //Manage screen
-  screen.loop();
 
-  debugLoop();
+  if ((millis()-lastcheck) > 50){
+    lastcheck=millis();
+    //Manage ligths
+    lm.checkLights(rec.channels[11].angle, rec.channels[2].angle, rec.channels[4].angle, rec.channels[1].angle);
+    //Manage screen
+    screen.loop();
+
+    debugLoop();
+  };
 }

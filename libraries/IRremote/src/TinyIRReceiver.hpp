@@ -448,12 +448,15 @@ bool TinyReceiverDecode() {
 /*
  * Function to be used as drop in for IrReceiver.decode()
  */
-bool TinyReceiverDecode() {
+bool TinyIRReceiverDecode() {
     bool tJustWritten = TinyIRReceiverData.justWritten;
     if (tJustWritten) {
         TinyIRReceiverData.justWritten = false;
     }
     return tJustWritten;
+}
+bool TinyReceiverDecode() {
+    return TinyIRReceiverDecode();
 }
 
 /*

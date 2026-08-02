@@ -39,10 +39,6 @@ int NonConstantsUsedForDigitalReadFast( void )  __attribute__ (( error("Paramete
 
 #include <Arduino.h> // declarations for the fallback to digitalWrite(), digitalRead() etc.
 
-#if defined(MEGATINYCORE)
-#error Do not use "#include digitalWriteFast.h" because megaTinyCore has it own digitalWriteFast function set, except digitalToggleFast().
-#endif
-
 // --- Arduino Mega and ATmega128x/256x based boards ---
 #if (defined(ARDUINO_AVR_MEGA) || \
        defined(ARDUINO_AVR_MEGA1280) || \

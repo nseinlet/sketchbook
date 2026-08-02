@@ -1,4 +1,4 @@
-int debug = 0;
+int debug = 1;
 
 void debugSetup() {
   if (debug>0){
@@ -8,14 +8,14 @@ void debugSetup() {
 
 void debugLoop() {
   if (debug==1){
-    for(int i=0;i<24;i++){
+    for(int i=0;i<CHANNELS_SIZE;i++){
       Serial.print(rec.channels[i].angle);
       Serial.print('\t');
     };
     Serial.println();
   }
   if (debug==2){
-    //Serial.print(rec.get_sBus_failsafe_status());
+    Serial.print(rec.get_sBus_failsafe_status());
     Serial.print('\t');
     Serial.print(SBUS_SIGNAL_OK);
     Serial.print('\t');
@@ -25,5 +25,8 @@ void debugLoop() {
     Serial.print('\t');
     Serial.print(SBUS_NO_SIGNAL);
     Serial.println();
+  }
+  if (debug==3){
+    rec.debug(Serial);
   }
 }
