@@ -30,7 +30,7 @@
 
 Receiver rec;
 LightManager lm;
-ReceiverDisplay screen("MT 1042", 1);
+ReceiverDisplay screen("MT 1042");
 long lastcheck;
 
 void setup(void) {
@@ -42,18 +42,18 @@ void setup(void) {
   //Sbus Decoder
   rec.setup(CHANNELS_SIZE);
   //Servos
-  rec.servoPins[0] = 9; rec.servoChannels[0] = 6;
-  rec.servoPins[1] = 10;rec.servoChannels[1] = 7;
-  rec.servoPins[2] = 11;rec.servoChannels[2] = 8;
-  rec.servoPins[3] = 12;rec.servoChannels[3] = 9;
-  rec.servoPins[4] = 13;rec.servoChannels[4] = 10;
-  rec.servoPins[5] = A0;rec.servoChannels[5] = 12;
-  rec.servoPins[6] = A1;rec.servoChannels[6] = 13;
-  rec.servoPins[7] = A2;rec.servoChannels[7] = 14;
-  rec.servoPins[8] = A3;rec.servoChannels[8] = 15;
-  //rec.servoPins[9] = A6;rec.servoChannels[9] = 16;
-  //rec.servoPins[10]= A7;rec.servoChannels[10]= 17;
-
+  //No off-by-one for the channel number. The first channel=1 !
+  rec.servoChannels[0] = 7;
+  rec.servoChannels[1] = 8;
+  rec.servoChannels[2] = 9;
+  rec.servoChannels[3] = 10;
+  rec.servoChannels[4] = 11;
+  rec.servoChannels[5] = 13;
+  rec.servoChannels[6] = 14;
+  rec.servoChannels[7] = 15;
+  rec.servoChannels[8] = 16;
+  rec.servoChannels[9] = 17;
+  rec.servoChannels[10]= 18;
   lastcheck=0;
 }
 
@@ -65,6 +65,7 @@ void loop()
   if ((millis()-lastcheck) > 50){
     lastcheck=millis();
     //Manage ligths
+    //On the receiver, there's an off-by-one for the channels. first channel=0 !
     lm.checkLights(rec.channels[11].angle, rec.channels[2].angle, rec.channels[4].angle, rec.channels[1].angle);
     //Manage screen
     screen.loop();
