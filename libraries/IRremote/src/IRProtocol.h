@@ -141,6 +141,8 @@ struct DistanceWidthTimingInfoStruct {
 
 extern uint8_t sLastSendToggleValue; // Currently used by RC5 + RC6
 
+extern uint8_t sLastSendToggleValue; // Currently used by RC5 + RC6
+
 struct PulseDistanceWidthProtocolConstants {
     decode_type_t ProtocolIndex;
     uint_fast8_t FrequencyKHz;

@@ -618,6 +618,22 @@ rawData[58]:
 Duration=36900us
 
 
+Send RC6A with 14 bit 0x2711 as extra
+Protocol=RC6A Address=0xF1 Command=0x76 Extra=0x2711 Toggle=1 Raw-Data=0xA711F176 35 bits MSB first Gap=1067100us Duration=36900us
+Send with: IrSender.sendRC6A(0xF1, 0x76, <numberOfRepeats>, 0x2711);
+rawData[58]:
+ -1067100
+ +2750,- 800
+ + 500,- 400 + 500,- 350 + 600,- 800 +1400,-1300
+ + 950,- 850 + 500,- 400 + 950,- 400 + 500,- 400
+ + 500,- 850 + 500,- 400 + 500,- 400 + 950,- 850
+ + 500,- 400 + 500,- 400 + 950,- 400 + 500,- 400
+ + 500,- 400 + 500,- 400 + 500,- 850 + 500,- 400
+ + 500,- 400 + 950,- 850 + 950,- 400 + 500,- 400
+ + 500,- 850 + 950,- 400 + 500,- 850 + 500
+Duration=36900us
+
+
 Send Bang&Olufsen
 - ENABLE_BEO_WITHOUT_FRAME_GAP is enabled
 rawData[44]:

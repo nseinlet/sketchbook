@@ -87,7 +87,7 @@ void FrSkySportSingleWireSerial::begin(SerialId id)
   else if((id == SERIAL_6) || (id == SERIAL_6_EXTINV)) initTeensySerial(id, &Serial6, &UART5_C3, &UART5_C1);
 #endif
 #endif
-#elif defined(__AVR_ATmega328P__) || defined(__AVR_ATmega2560__) || defined(ESP8266)
+#elif defined(__AVR_ATmega328P__) || defined(__AVR_ATmega2560__) || defined(ESP8266) || defined(ARDUINO_AVR_NANO_EVERY)
   if(id == SERIAL_EXTINV) initTwoWireSerial(id, &Serial);
 #if defined(__AVR_ATmega2560__)
   else if(id == SERIAL_1_EXTINV) initTwoWireSerial(id, &Serial1);
@@ -110,7 +110,7 @@ void FrSkySportSingleWireSerial::setMode(SerialMode mode)
     if(mode == TX) *uartCtrl |= UART_CTRL_TXDIR_FLAG;
     else if(mode == RX) *uartCtrl &= ~UART_CTRL_TXDIR_FLAG;
   }
-#elif defined(__AVR_ATmega328P__) || defined(__AVR_ATmega2560__) || defined(ESP8266)
+#elif defined(__AVR_ATmega328P__) || defined(__AVR_ATmega2560__) || defined(ESP8266) || defined(ARDUINO_AVR_NANO_EVERY)
   if((port != NULL) && ((serialId & EXTINV_FLAG) != EXTINV_FLAG))
   {
     if(mode == TX) pinMode(serialId, OUTPUT);
